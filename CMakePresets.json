@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-vs2022",
+      "displayName": "Windows Visual Studio 2022",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/windows-vs2022",
+      "cacheVariables": {
+        "HIPCV_ENABLE_HIP": "ON",
+        "HIPCV_BUILD_EXAMPLES": "ON",
+        "HIPCV_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "windows-vs2022-no-hip",
+      "displayName": "Windows Visual Studio 2022 without HIP",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/windows-vs2022-no-hip",
+      "cacheVariables": {
+        "HIPCV_ENABLE_HIP": "OFF",
+        "HIPCV_BUILD_EXAMPLES": "ON",
+        "HIPCV_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-vs2022-release",
+      "configurePreset": "windows-vs2022",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-vs2022-no-hip-release",
+      "configurePreset": "windows-vs2022-no-hip",
+      "configuration": "Release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-vs2022-release",
+      "configurePreset": "windows-vs2022",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-vs2022-no-hip-release",
+      "configurePreset": "windows-vs2022-no-hip",
+      "configuration": "Release"
+    }
+  ]
+}

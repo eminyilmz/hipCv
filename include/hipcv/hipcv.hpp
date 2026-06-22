@@ -1,10 +1,6 @@
 #pragma once
 
-namespace hipcv {
-
-constexpr int version_major = 0;
-constexpr int version_minor = 1;
-constexpr int version_patch = 0;
-
-} // namespace hipcv
-
+#include "hipcv/device.hpp"
+#include "hipcv/gpu_mat.hpp"
+#include "hipcv/status.hpp"
+#include "hipcv/version.hpp"

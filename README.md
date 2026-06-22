@@ -78,6 +78,27 @@ hipconfig
 See [Windows development notes](docs/windows-development.md) for the planned
 setup and constraints.
 
+## Build Smoke Test
+
+With AMD HIP SDK installed:
+
+```powershell
+cmake --preset windows-vs2022
+cmake --build --preset windows-vs2022-release
+ctest --preset windows-vs2022-release
+```
+
+Without AMD HIP SDK installed:
+
+```powershell
+cmake --preset windows-vs2022-no-hip
+cmake --build --preset windows-vs2022-no-hip-release
+ctest --preset windows-vs2022-no-hip-release
+```
+
+The no-HIP preset is useful for documentation work, API review, and CI jobs
+that do not have an AMD GPU available.
+
 ## Secondary Platform
 
 - Linux

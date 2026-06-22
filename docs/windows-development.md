@@ -53,12 +53,38 @@ hipInfo
 hipconfig
 ```
 
-Then the project should provide a Windows smoke test:
+Then the project provides a Windows smoke test:
 
 ```powershell
-cmake -S . -B build -G "Visual Studio 17 2022"
-cmake --build build --config Release
-ctest --test-dir build -C Release
+cmake --preset windows-vs2022
+cmake --build --preset windows-vs2022-release
+ctest --preset windows-vs2022-release
+```
+
+If HIP SDK is not installed yet, the project should still configure and build
+without the GPU backend. In that mode, the smoke test reports that HIP is
+disabled. To force a documentation or CPU-only build:
+
+```powershell
+cmake --preset windows-vs2022-no-hip
+cmake --build --preset windows-vs2022-no-hip-release
+ctest --preset windows-vs2022-no-hip-release
+```
+
+The HIP SDK finder checks common Windows locations such as:
+
+```text
+C:\Program Files\AMD\ROCm\*
+C:\Program Files\AMD\HIP SDK\*
+```
+
+It also honors these environment variables when present:
+
+```text
+HIP_PATH
+ROCM_PATH
+HIPSDK_ROOT
+ROCM_ROOT
 ```
 
 ## Design Rule

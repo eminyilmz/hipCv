@@ -6,10 +6,59 @@ project(hipcv
     LANGUAGES CXX
 )
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(hipcv INTERFACE)
-target_include_directories(hipcv INTERFACE include)
+option(HIPCV_ENABLE_HIP "Enable AMD HIP SDK support when available" ON)
+option(HIPCV_BUILD_EXAMPLES "Build example executables" ON)
+option(HIPCV_BUILD_TESTS "Build tests" ON)
 
+set(HIPCV_HAS_HIP 0)
+
+if(HIPCV_ENABLE_HIP)
+    find_package(HIPSDK QUIET)
+    if(HIPSDK_FOUND)
+        set(HIPCV_HAS_HIP 1)
+    else()
+        message(STATUS "AMD HIP SDK was not found; building hipcv without GPU backend.")
+    endif()
+endif()
+
+add_library(hipcv STATIC
+    src/device.cpp
+    src/gpu_mat.cpp
+    src/version.cpp
+)
+
+target_include_directories(hipcv
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_compile_definitions(hipcv
+    PUBLIC
+        HIPCV_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+        HIPCV_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+        HIPCV_VERSION_PATCH=${PROJECT_VERSION_PATCH}
+    PRIVATE
+        HIPCV_HAS_HIP=${HIPCV_HAS_HIP}
+)
+
+if(HIPCV_HAS_HIP)
+    target_link_libraries(hipcv PUBLIC HIPSDK::amdhip64)
+endif()
+
+if(HIPCV_BUILD_EXAMPLES)
+    add_executable(hipcv_windows_smoke examples/windows_smoke.cpp)
+    target_link_libraries(hipcv_windows_smoke PRIVATE hipcv)
+endif()
+
+if(HIPCV_BUILD_TESTS)
+    enable_testing()
+    if(TARGET hipcv_windows_smoke)
+        add_test(NAME hipcv_windows_smoke COMMAND hipcv_windows_smoke)
+    endif()
+endif()
