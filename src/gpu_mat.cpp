@@ -150,6 +150,32 @@ Status GpuMat::download(void* host_data, std::size_t host_capacity_bytes) const 
 #endif
 }
 
+Status GpuMat::copyTo(GpuMat& dst) const noexcept
+{
+    if (empty()) {
+        return {StatusCode::invalid_argument, "source GpuMat is empty"};
+    }
+
+    if (&dst == this) {
+        return Status::success();
+    }
+
+    if (auto status = dst.allocate(shape_); !status.ok()) {
+        return status;
+    }
+
+#if HIPCV_HAS_HIP
+    if (hipMemcpy(dst.data_, data_, size_bytes_, hipMemcpyDeviceToDevice) != hipSuccess) {
+        dst.release();
+        return {StatusCode::copy_failed, "device-to-device hipMemcpy failed"};
+    }
+
+    return Status::success();
+#else
+    return {StatusCode::hip_not_enabled, "hipcv was built without HIP support"};
+#endif
+}
+
 void GpuMat::release() noexcept
 {
 #if HIPCV_HAS_HIP

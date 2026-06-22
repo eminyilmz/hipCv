@@ -48,6 +48,7 @@ public:
     Status allocate(ImageShape shape) noexcept;
     Status upload(const void* host_data, ImageShape shape) noexcept;
     Status download(void* host_data, std::size_t host_capacity_bytes) const noexcept;
+    Status copyTo(GpuMat& dst) const noexcept;
     void release() noexcept;
 
 private:
