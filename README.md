@@ -116,6 +116,18 @@ first real HIP image kernel: BGR/RGB -> GRAY
 
 ## Quickstart
 
+Start by checking the local Windows environment:
+
+```powershell
+.\scripts\check-windows-env.ps1
+```
+
+For a machine where AMD HIP SDK is expected to be available:
+
+```powershell
+.\scripts\check-windows-env.ps1 -RequireHip
+```
+
 ### No-HIP Build
 
 Use this path for documentation work, API review, and basic compile checks on
@@ -153,7 +165,7 @@ ctest --preset windows-vs2022-release
 | OS | Windows 11 x86-64 |
 | GPU backend | AMD HIP SDK for Windows |
 | GPU | ROCm/HIP-supported AMD Radeon or Radeon PRO |
-| Toolchain | Visual Studio 2022 or compatible C++ build tools |
+| Toolchain | Visual Studio 2022/2026 or compatible C++ build tools |
 | Build system | CMake |
 | Language | C++17 |
 | Future binding | Python 3.10+ |
@@ -173,11 +185,21 @@ Linux ROCm support is still relevant, but it is not the first milestone.
 See the full [roadmap](docs/roadmap.md) for detailed phases, deliverables, and
 exit criteria.
 
+## Available CMake Presets
+
+| Preset | Purpose |
+| --- | --- |
+| `windows-vs2022` | Visual Studio 2022 with HIP enabled |
+| `windows-vs2022-no-hip` | Visual Studio 2022 without HIP |
+| `windows-vs2026` | Visual Studio 2026 with HIP enabled |
+| `windows-vs2026-no-hip` | Visual Studio 2026 without HIP |
+
 ## Documentation
 
 - [Roadmap](docs/roadmap.md)
 - [Windows development notes](docs/windows-development.md)
 - [Market positioning](docs/market-positioning.md)
+- [Validation log](docs/validation-log.md)
 
 ## Design Principles
 
@@ -195,6 +217,7 @@ cmake/       CMake helper modules
 docs/        planning, positioning, and setup notes
 examples/    small runnable examples
 include/     public hipcv headers
+scripts/     local developer helper scripts
 src/         C++ implementation
 tests/       planned test executables
 benchmarks/  planned benchmark tools

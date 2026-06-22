@@ -7,7 +7,7 @@
 - Windows 11 x86-64
 - AMD HIP SDK for Windows
 - Supported AMD Radeon or Radeon PRO GPU
-- Visual Studio 2022 or compatible C++ build tools
+- Visual Studio 2022/2026 or compatible C++ build tools
 - CMake
 - Python 3.10+
 - OpenCV CPU baseline for correctness tests
@@ -46,6 +46,18 @@ Windows proof of life:
 
 ## Expected Validation Commands
 
+Start with the repository environment check:
+
+```powershell
+.\scripts\check-windows-env.ps1
+```
+
+If HIP SDK should already be installed, require HIP tools explicitly:
+
+```powershell
+.\scripts\check-windows-env.ps1 -RequireHip
+```
+
 Users should first verify the HIP SDK installation:
 
 ```powershell
@@ -70,6 +82,23 @@ cmake --preset windows-vs2022-no-hip
 cmake --build --preset windows-vs2022-no-hip-release
 ctest --preset windows-vs2022-no-hip-release
 ```
+
+On machines with Visual Studio 2026, use the matching presets:
+
+```powershell
+cmake --preset windows-vs2026-no-hip
+cmake --build --preset windows-vs2026-no-hip-release
+ctest --preset windows-vs2026-no-hip-release
+```
+
+If MSBuild fails with a duplicate environment variable error such as:
+
+```text
+Key in dictionary: 'Path' Key being added: 'PATH'
+```
+
+run `.\scripts\check-windows-env.ps1` and clean the shell environment so only
+one `Path`/`PATH` variable is present before running CMake.
 
 The HIP SDK finder checks common Windows locations such as:
 

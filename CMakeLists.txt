@@ -49,6 +49,7 @@ target_compile_definitions(hipcv
 
 if(HIPCV_HAS_HIP)
     target_link_libraries(hipcv PUBLIC HIPSDK::amdhip64)
+    target_compile_definitions(hipcv PRIVATE __HIP_PLATFORM_AMD__)
 endif()
 
 if(HIPCV_BUILD_EXAMPLES)
@@ -58,7 +59,17 @@ endif()
 
 if(HIPCV_BUILD_TESTS)
     enable_testing()
+
+    function(hipcv_add_test name source)
+        add_executable(${name} ${source})
+        target_link_libraries(${name} PRIVATE hipcv)
+        add_test(NAME ${name} COMMAND ${name})
+    endfunction()
+
     if(TARGET hipcv_windows_smoke)
         add_test(NAME hipcv_windows_smoke COMMAND hipcv_windows_smoke)
     endif()
+
+    hipcv_add_test(hipcv_test_status tests/test_status.cpp)
+    hipcv_add_test(hipcv_test_gpu_mat_no_hip tests/test_gpu_mat_no_hip.cpp)
 endif()
