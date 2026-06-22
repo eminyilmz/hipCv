@@ -140,3 +140,44 @@ Empty GpuMat: yes
 
 - `__HIP_PLATFORM_AMD__` must be defined when including HIP headers on this
   Windows HIP SDK setup. The project now defines it for HIP builds.
+- Compile-time `.hip` kernel compilation with VS2026/MSVC 14.51 hit a HIP
+  Clang/MSVC `<cmath>` overload conflict. The first image kernel therefore uses
+  HIPRTC runtime compilation.
+
+## 2026-06-22: First Image Kernel
+
+### Feature
+
+- Added `hipcv::cvtColor`.
+- Added `hipcv::ColorConversion::bgr_to_gray`.
+- Added `hipcv::ColorConversion::rgb_to_gray`.
+- The kernel is compiled with HIPRTC at runtime for the active GPU
+  architecture.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_cvt_color.exe
+```
+
+Result:
+
+```text
+1/4 Test #1: hipcv_windows_smoke .............. Passed
+2/4 Test #2: hipcv_test_status ................ Passed
+3/4 Test #3: hipcv_test_gpu_mat_no_hip ........ Passed
+4/4 Test #4: hipcv_test_cvt_color ............. Passed
+100% tests passed, 0 tests failed out of 4
+BGR2GRAY: 77 149 29
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding `cvtColor`:
+
+```text
+100% tests passed, 0 tests failed out of 4
+```

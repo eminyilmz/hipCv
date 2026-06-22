@@ -106,12 +106,15 @@ Implemented or scaffolded:
 - `GpuMat::upload`.
 - `GpuMat::download`.
 - `GpuMat::copyTo`.
+- `cvtColor` with `BGR2GRAY` and `RGB2GRAY`.
+- First HIPRTC-backed image kernel.
 - Windows smoke example.
+- Minimal `cvtColor` example.
 
 Next technical target:
 
 ```text
-first real HIP image kernel: BGR/RGB -> GRAY
+resize nearest neighbor
 ```
 
 ## Quickstart

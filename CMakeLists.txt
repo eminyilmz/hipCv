@@ -30,6 +30,7 @@ endif()
 add_library(hipcv STATIC
     src/device.cpp
     src/gpu_mat.cpp
+    src/imgproc.cpp
     src/version.cpp
 )
 
@@ -48,13 +49,16 @@ target_compile_definitions(hipcv
 )
 
 if(HIPCV_HAS_HIP)
-    target_link_libraries(hipcv PUBLIC HIPSDK::amdhip64)
+    target_link_libraries(hipcv PUBLIC HIPSDK::amdhip64 HIPSDK::hiprtc)
     target_compile_definitions(hipcv PRIVATE __HIP_PLATFORM_AMD__)
 endif()
 
 if(HIPCV_BUILD_EXAMPLES)
     add_executable(hipcv_windows_smoke examples/windows_smoke.cpp)
     target_link_libraries(hipcv_windows_smoke PRIVATE hipcv)
+
+    add_executable(hipcv_cvt_color examples/cvt_color.cpp)
+    target_link_libraries(hipcv_cvt_color PRIVATE hipcv)
 endif()
 
 if(HIPCV_BUILD_TESTS)
@@ -72,4 +76,5 @@ if(HIPCV_BUILD_TESTS)
 
     hipcv_add_test(hipcv_test_status tests/test_status.cpp)
     hipcv_add_test(hipcv_test_gpu_mat_no_hip tests/test_gpu_mat_no_hip.cpp)
+    hipcv_add_test(hipcv_test_cvt_color tests/test_cvt_color.cpp)
 endif()
