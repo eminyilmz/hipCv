@@ -1,15 +1,15 @@
 # hipcv
 
-AMD GPU'larda OpenCV CUDA benzeri bir gelistirici deneyimi sunmayi hedefleyen
-HIP tabanli goruntu isleme kutuphanesi.
+A HIP-based image processing library that aims to bring an OpenCV CUDA-like
+developer experience to AMD GPUs.
 
-## Amac
+## Goal
 
-`hipcv`, CUDA'yi AMD icin bastan yazmaya calismaz. Bunun yerine AMD'nin
-ROCm/HIP ekosistemi uzerinde, OpenCV kullanan gelistiricilerin kolayca
-anlayabilecegi daha ust seviye bir API hedefler.
+`hipcv` does not try to reimplement CUDA for AMD. Instead, it builds on AMD's
+ROCm/HIP ecosystem and provides a higher-level API that should feel familiar to
+developers who already use OpenCV.
 
-Hedeflenen kullanim:
+Target usage:
 
 ```python
 import hipcv as hcv
@@ -20,7 +20,7 @@ blur = hcv.gaussianBlur(gray, (5, 5), 1.2)
 out = blur.download()
 ```
 
-## Ilk MVP Kapsami
+## Initial MVP Scope
 
 - `GpuMat`
 - `upload` / `download`
@@ -31,35 +31,34 @@ out = blur.download()
 - `blur`
 - `gaussianBlur`
 - Python binding
-- OpenCV CPU ile dogruluk testleri
-- Temel benchmark araci
+- Accuracy tests against OpenCV CPU output
+- Basic benchmark tooling
 
-## Piyasadaki Bosluk
+## Market Gap
 
-Bugun AMD tarafinda ROCm, HIP, RPP, rocAL ve MIVisionX gibi guclu parcaciklar
-var. Fakat OpenCV CUDA'daki `GpuMat` + `cv::cuda` deneyimine benzeyen, sade,
-Python dostu ve genel amacli bir AMD GPU goruntu isleme katmani yeterince net
-degil.
+AMD already provides strong building blocks such as ROCm, HIP, RPP, rocAL, and
+MIVisionX. However, there is still no obvious, general-purpose, Python-friendly
+AMD GPU image processing layer that feels as direct as OpenCV CUDA's `GpuMat`
+and `cv::cuda` workflow.
 
-`hipcv` bu bosluga odaklanir:
+`hipcv` focuses on that gap:
 
-- HIP'in dusuk seviye gucunu saklar.
-- OpenCV'ye benzer fonksiyon isimleri ve veri akisi sunar.
-- Mumkun oldugunda ROCm/RPP gibi mevcut AMD bilesenlerinden yararlanir.
-- Tek tek fonksiyonlardan cok gercek zamanli pipeline performansini onemser.
+- Hide the low-level complexity of HIP behind a practical API.
+- Provide OpenCV-like function names and data flow.
+- Reuse existing AMD components such as ROCm/RPP where it makes sense.
+- Optimize for real-time pipelines, not just isolated function calls.
 
-## Ilk Hedef Platform
+## Initial Target Platform
 
 - Linux
-- ROCm destekli AMD GPU
+- ROCm-supported AMD GPU
 - C++17
 - HIP
 - Python 3.10+
 - OpenCV CPU baseline
 
-Windows destegi daha sonraki asamada degerlendirilecektir.
+Windows support will be evaluated later.
 
-## Proje Durumu
+## Project Status
 
-Bu repo erken tasarim ve MVP planlama asamasindadir.
-
+This repository is in the early design and MVP planning stage.

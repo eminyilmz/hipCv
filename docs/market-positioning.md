@@ -1,32 +1,31 @@
 # Market Positioning
 
-## Kisa Konumlandirma
+## Short Positioning
 
-AMD GPU'larda OpenCV CUDA benzeri, kolay kullanilan, Python dostu goruntu
-isleme katmani.
+An easy-to-use, Python-friendly image processing layer that brings an OpenCV
+CUDA-like workflow to AMD GPUs.
 
-## Ne Degil?
+## What It Is Not
 
-- CUDA klonu degil.
-- ROCm/HIP yerine gecmez.
-- Ilk asamada DNN inference framework'u degil.
-- OpenCV'nin tam alternatifi degil.
+- Not a CUDA clone.
+- Not a replacement for ROCm/HIP.
+- Not a DNN inference framework in the first stage.
+- Not a full OpenCV replacement.
 
-## Ne?
+## What It Is
 
-- HIP uzerinde calisan ust seviye goruntu isleme API'si.
-- OpenCV kullanan gelistiriciler icin tanidik fonksiyonlar.
-- AMD GPU'da veri GPU uzerindeyken islemleri zincirleme imkani.
-- Benchmark ve dogruluk testleriyle guven veren kucuk bir cekirdek.
+- A higher-level image processing API built on HIP.
+- Familiar functions for developers who already use OpenCV.
+- A way to chain operations while data stays on the AMD GPU.
+- A small, reliable core backed by benchmarks and accuracy tests.
 
-## Mevcut Cozumlerden Farki
+## Difference from Existing Solutions
 
-| Cozum | Guclu Yani | hipcv'nin Farki |
+| Solution | Strength | hipcv Difference |
 | --- | --- | --- |
-| ROCm/HIP | Dusuk seviye GPU programlama | Daha ust seviye OpenCV benzeri API |
-| OpenCV CUDA | Olgun ve kolay CUDA deneyimi | AMD GPU hedefi |
-| OpenCV UMat/OpenCL | Tasima kabiliyeti | Daha belirgin HIP backend ve performans kontrolu |
-| RPP | Performans primitive'leri | Daha sade uygulama gelistirici API'si |
-| rocAL | ML veri pipeline'i | Genel amacli goruntu isleme |
-| MIVisionX | Kapsamli OpenVX toolkit | Daha hafif ve OpenCV/Python odakli deneyim |
-
+| ROCm/HIP | Low-level GPU programming | Higher-level OpenCV-like API |
+| OpenCV CUDA | Mature and convenient CUDA workflow | AMD GPU target |
+| OpenCV UMat/OpenCL | Portability | More explicit HIP backend and performance control |
+| RPP | Performance primitives | Simpler application developer API |
+| rocAL | ML data pipelines | General-purpose image processing |
+| MIVisionX | Comprehensive OpenVX toolkit | Lighter OpenCV/Python-focused experience |

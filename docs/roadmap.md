@@ -1,23 +1,23 @@
 # Roadmap
 
-## Faz 0: Arastirma ve Tasarim
+## Phase 0: Research and Design
 
-- Hedef GPU ve ROCm surumleri belirlenecek.
-- OpenCV CUDA API yuzeyi incelenecek.
-- RPP, rocAL ve MIVisionX ile cakisan alanlar netlestirilecek.
-- MVP fonksiyon listesi kesinlestirilecek.
+- Define the target GPU and ROCm versions.
+- Review the OpenCV CUDA API surface.
+- Identify overlap with RPP, rocAL, and MIVisionX.
+- Finalize the MVP function list.
 
-## Faz 1: Cekirdek Altyapi
+## Phase 1: Core Infrastructure
 
-- `GpuMat` veri yapisi
+- `GpuMat` data structure
 - HIP memory allocation
 - `upload` / `download`
-- `Stream` ve async calisma modeli
-- Hata yonetimi
+- `Stream` and async execution model
+- Error handling
 - CMake build sistemi
 - C++ smoke test
 
-## Faz 2: Ilk Goruntu Fonksiyonlari
+## Phase 2: First Image Processing Functions
 
 - `cvtColor`
 - `resize`
@@ -25,31 +25,30 @@
 - `blur`
 - `gaussianBlur`
 
-Her fonksiyon icin OpenCV CPU ciktisiyla dogruluk testi yazilacak.
+Each function will include an accuracy test against OpenCV CPU output.
 
-## Faz 3: Pipeline ve Benchmark
+## Phase 3: Pipeline and Benchmarking
 
-- Tek fonksiyon benchmarklari
-- Zincirlenmis pipeline benchmarklari
-- 720p, 1080p ve 4K testleri
-- Upload/download maliyeti ayri olculecek
+- Single-function benchmarks
+- Chained pipeline benchmarks
+- 720p, 1080p, and 4K tests
+- Separate measurement for upload/download overhead
 
-Ornek pipeline:
+Example pipeline:
 
 ```text
 upload -> resize -> cvtColor -> gaussianBlur -> download
 ```
 
-## Faz 4: Python API
+## Phase 4: Python API
 
-- pybind11 entegrasyonu
-- NumPy array giris/cikis destegi
-- Basit Python ornekleri
-- Paketleme denemesi
+- pybind11 integration
+- NumPy array input/output support
+- Simple Python examples
+- Packaging experiment
 
-## Faz 5: OpenCV Uyumlulugu
+## Phase 5: OpenCV Compatibility
 
-- `cv::Mat` ve `hipcv::GpuMat` donusumleri
-- OpenCV kullanan projelere dusuk maliyetli gecis
-- `cv2.cuda` benzeri isimlendirme stratejisinin degerlendirilmesi
-
+- `cv::Mat` and `hipcv::GpuMat` conversions
+- Low-friction migration path for OpenCV-based projects
+- Evaluate a `cv2.cuda`-like naming strategy
