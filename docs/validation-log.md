@@ -512,6 +512,52 @@ Result:
 100% tests passed, 0 tests failed out of 10
 ```
 
+## 2026-06-23: BGR/RGB Channel Swap Conversion
+
+### Feature
+
+- Added `hipcv::ColorConversion::bgr_to_rgb`.
+- Added `hipcv::ColorConversion::rgb_to_bgr`.
+- Extended the HIPRTC `cvtColor` program with a channel-swap kernel.
+- Expanded `hipcv_test_cvt_color` to verify `BGR2RGB` and `RGB2BGR`.
+- Updated the `hipcv_cvt_color` example output.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_cvt_color.exe
+```
+
+Result:
+
+```text
+ 1/10 Test  #1: hipcv_windows_smoke ............... Passed
+ 2/10 Test  #2: hipcv_test_status ................. Passed
+ 3/10 Test  #3: hipcv_test_gpu_mat_no_hip ......... Passed
+ 4/10 Test  #4: hipcv_test_gpu_mat_roundtrip ...... Passed
+ 5/10 Test  #5: hipcv_test_cvt_color .............. Passed
+ 6/10 Test  #6: hipcv_test_resize ................. Passed
+ 7/10 Test  #7: hipcv_test_threshold .............. Passed
+ 8/10 Test  #8: hipcv_test_blur ................... Passed
+ 9/10 Test  #9: hipcv_test_gaussian_blur .......... Passed
+10/10 Test #10: hipcv_test_imgproc_invalid_args ... Passed
+100% tests passed, 0 tests failed out of 10
+BGR2GRAY: 77 149 29
+BGR2RGB: (255,0,0) (0,255,0) (0,0,255)
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding channel-swap color
+conversions:
+
+```text
+100% tests passed, 0 tests failed out of 10
+```
+
 ## 2026-06-23: OpenCV CUDA Migration Notes
 
 ### Feature
@@ -540,32 +586,39 @@ roundtrip test skips GPU checks when HIP is disabled.
 ### Feature
 
 - Added `.github/workflows/no-hip.yml`.
+- Added `windows-ci-no-hip` CMake configure/build/test presets.
 - The workflow runs on `windows-latest`.
 - It validates the no-HIP contributor path with:
-  - `cmake --fresh --preset windows-vs2022-no-hip`
-  - `cmake --build --preset windows-vs2022-no-hip-release`
-  - `ctest --preset windows-vs2022-no-hip-release --output-on-failure`
+  - `cmake --fresh --preset windows-ci-no-hip`
+  - `cmake --build --preset windows-ci-no-hip`
+  - `ctest --preset windows-ci-no-hip --output-on-failure`
 - Added a README badge for the workflow.
 
 ### Local Verification
 
 The workflow itself runs on GitHub after push or pull request creation. The
-workflow uses the Visual Studio 2022 no-HIP preset because `windows-latest`
-provides Visual Studio 2022:
+first workflow version used the `windows-vs2022-no-hip` preset, but GitHub
+Actions failed during configure because CMake could not find a Visual Studio
+2022 instance:
 
-```powershell
-cmake --fresh --preset windows-vs2022-no-hip
-cmake --build --preset windows-vs2022-no-hip-release
-ctest --preset windows-vs2022-no-hip-release --output-on-failure
+```text
+Generator
+  Visual Studio 17 2022
+
+could not find any instance of Visual Studio.
 ```
 
-This local machine does not have Visual Studio 2022 installed, so the equivalent
-no-HIP validation was run locally with the Visual Studio 2026 no-HIP preset:
+The workflow now sets up the MSVC developer environment and uses an
+`NMake Makefiles` CI preset. This keeps CI independent of Visual Studio
+generator instance discovery while still compiling with MSVC.
+
+The same CI preset was validated locally from a Visual Studio developer
+environment:
 
 ```powershell
-cmake --fresh --preset windows-vs2026-no-hip
-cmake --build --preset windows-vs2026-no-hip-release
-ctest --preset windows-vs2026-no-hip-release --output-on-failure
+cmake --fresh --preset windows-ci-no-hip
+cmake --build --preset windows-ci-no-hip
+ctest --preset windows-ci-no-hip --output-on-failure
 ```
 
 Result:

@@ -15,7 +15,7 @@ as a compatibility promise.
 | `GpuMat::upload` | `GpuMat::upload` | Host-to-device copy |
 | `GpuMat::download` | `GpuMat::download` | Device-to-host copy |
 | `GpuMat::copyTo` | `GpuMat::copyTo` | Device-to-device copy |
-| `cv::cuda::cvtColor` | `hipcv::cvtColor` | `BGR2GRAY`, `RGB2GRAY` |
+| `cv::cuda::cvtColor` | `hipcv::cvtColor` | `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, `RGB2BGR` |
 | `cv::cuda::resize` | `hipcv::resize` | Nearest neighbor |
 | `cv::cuda::threshold` | `hipcv::threshold` | Binary, binary inverse for `gray8` |
 | `cv::cuda::blur` | `hipcv::blur` | Box blur for `gray8` |
@@ -92,7 +92,7 @@ and avoids requiring callers to duplicate output-shape logic.
 
 The MVP is intentionally narrow:
 
-- `cvtColor` supports `BGR2GRAY` and `RGB2GRAY`.
+- `cvtColor` supports `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, and `RGB2BGR`.
 - `resize` supports nearest neighbor.
 - `threshold`, `blur`, and `gaussianBlur` currently operate on `gray8`.
 - `gaussianBlur` supports 3x3 and 5x5 square kernels.

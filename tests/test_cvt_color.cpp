@@ -77,6 +77,62 @@ bool run_case(const std::vector<std::uint8_t>& input, hipcv::PixelFormat format,
     return true;
 }
 
+bool run_swap_case(
+    const std::vector<std::uint8_t>& input,
+    hipcv::PixelFormat input_format,
+    hipcv::PixelFormat output_format,
+    hipcv::ColorConversion conversion)
+{
+    const hipcv::ImageShape shape{
+        3,
+        2,
+        3,
+        0,
+        input_format,
+    };
+
+    hipcv::GpuMat src;
+    auto status = src.upload(input.data(), shape);
+    if (!status.ok()) {
+        std::cerr << "upload failed: " << status.message() << '\n';
+        return false;
+    }
+
+    hipcv::GpuMat converted;
+    status = hipcv::cvtColor(src, converted, conversion);
+    if (!status.ok()) {
+        std::cerr << "cvtColor swap failed: " << status.message() << '\n';
+        return false;
+    }
+
+    const auto converted_shape = converted.shape();
+    expect(converted_shape.width == shape.width, "converted width should match source");
+    expect(converted_shape.height == shape.height, "converted height should match source");
+    expect(converted_shape.channels == 3, "converted image should have three channels");
+    expect(converted_shape.format == output_format, "converted image should use requested color format");
+
+    std::vector<std::uint8_t> output(input.size());
+    status = converted.download(output.data(), output.size());
+    if (!status.ok()) {
+        std::cerr << "download failed: " << status.message() << '\n';
+        return false;
+    }
+
+    std::vector<std::uint8_t> expected(input.size());
+    for (std::size_t i = 0; i < input.size(); i += 3) {
+        expected[i + 0] = input[i + 2];
+        expected[i + 1] = input[i + 1];
+        expected[i + 2] = input[i + 0];
+    }
+
+    if (output != expected) {
+        std::cerr << "channel swap output mismatch\n";
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace
 
 int main()
@@ -112,6 +168,12 @@ int main()
 
     expect(run_case(bgr, hipcv::PixelFormat::bgr8, hipcv::ColorConversion::bgr_to_gray), "BGR to gray should match reference");
     expect(run_case(rgb, hipcv::PixelFormat::rgb8, hipcv::ColorConversion::rgb_to_gray), "RGB to gray should match reference");
+    expect(
+        run_swap_case(bgr, hipcv::PixelFormat::bgr8, hipcv::PixelFormat::rgb8, hipcv::ColorConversion::bgr_to_rgb),
+        "BGR to RGB should swap red and blue channels");
+    expect(
+        run_swap_case(rgb, hipcv::PixelFormat::rgb8, hipcv::PixelFormat::bgr8, hipcv::ColorConversion::rgb_to_bgr),
+        "RGB to BGR should swap red and blue channels");
 
     return failures == 0 ? 0 : 1;
 }

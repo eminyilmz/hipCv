@@ -9,7 +9,9 @@ namespace hipcv {
 
 enum class ColorConversion {
     bgr_to_gray,
-    rgb_to_gray
+    rgb_to_gray,
+    bgr_to_rgb,
+    rgb_to_bgr
 };
 
 enum class ResizeInterpolation {

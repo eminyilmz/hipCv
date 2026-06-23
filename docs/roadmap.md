@@ -151,6 +151,8 @@ pipelines.
 1. `cvtColor` initial pass
    - `BGR2GRAY`
    - `RGB2GRAY`
+   - `BGR2RGB`
+   - `RGB2BGR`
 2. `resize` initial pass
    - nearest neighbor
 3. `threshold` initial pass
@@ -163,12 +165,9 @@ pipelines.
 
 ### Follow-Up Operation Modes
 
-1. `cvtColor`
-   - `BGR2RGB`
-   - `RGB2BGR`
-2. `resize`
+1. `resize`
    - bilinear
-3. `blur` and `gaussianBlur`
+2. `blur` and `gaussianBlur`
    - multi-channel variants
    - broader kernel sizes where useful
 
@@ -422,7 +421,7 @@ Goal: expand carefully without losing the simple OpenCV-like experience.
 ### v0.2: First Kernel
 
 - HIP kernel build path.
-- `cvtColor` with `BGR2GRAY` and `RGB2GRAY`.
+- `cvtColor` with `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, and `RGB2BGR`.
 - CPU reference tests.
 - Grayscale example.
 

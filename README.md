@@ -107,7 +107,7 @@ Implemented or scaffolded:
 - `GpuMat::upload`.
 - `GpuMat::download`.
 - `GpuMat::copyTo`.
-- `cvtColor` with `BGR2GRAY` and `RGB2GRAY`.
+- `cvtColor` with `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, and `RGB2BGR`.
 - `resize` with nearest-neighbor interpolation.
 - `threshold` with binary and binary-inverse modes for `gray8`.
 - `blur` with box filtering for `gray8`.
@@ -130,7 +130,7 @@ Implemented or scaffolded:
 Next technical target:
 
 ```text
-BGR2RGB/RGB2BGR color conversion
+bilinear resize interpolation
 ```
 
 ## Quickstart
@@ -203,7 +203,7 @@ Linux ROCm support is still relevant, but it is not the first milestone.
 | Milestone | Focus | Output |
 | --- | --- | --- |
 | `v0.1` | Technical scaffold | CMake, HIP detection, `GpuMat`, upload/download/copy |
-| `v0.2` | First kernel | `BGR2GRAY`, `RGB2GRAY`, CPU reference tests |
+| `v0.2` | First kernel | `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, `RGB2BGR`, CPU reference tests |
 | `v0.3` | Preprocessing MVP | `resize`, `threshold`, chained GPU pipeline |
 | `v0.4` | Usability | examples, docs, no-HIP CI checks, optional OpenCV comparison |
 | `v0.5` | Python preview | pybind11, NumPy upload/download, Python examples |
@@ -219,6 +219,7 @@ exit criteria.
 | `windows-vs2022-no-hip` | Visual Studio 2022 without HIP |
 | `windows-vs2026` | Visual Studio 2026 with HIP enabled |
 | `windows-vs2026-no-hip` | Visual Studio 2026 without HIP |
+| `windows-ci-no-hip` | NMake/MSVC no-HIP preset for GitHub Actions |
 
 ## Documentation
 

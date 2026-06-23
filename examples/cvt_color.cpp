@@ -55,5 +55,25 @@ int main()
     }
     std::cout << '\n';
 
+    hipcv::GpuMat rgb;
+    if (auto status = hipcv::cvtColor(src, rgb, hipcv::ColorConversion::bgr_to_rgb); !status.ok()) {
+        std::cerr << "cvtColor swap failed: " << status.message() << '\n';
+        return 1;
+    }
+
+    std::vector<std::uint8_t> rgb_output(bgr.size());
+    if (auto status = rgb.download(rgb_output.data(), rgb_output.size()); !status.ok()) {
+        std::cerr << "download failed: " << status.message() << '\n';
+        return 1;
+    }
+
+    std::cout << "BGR2RGB:";
+    for (std::size_t i = 0; i < rgb_output.size(); i += 3) {
+        std::cout << " (" << static_cast<int>(rgb_output[i])
+                  << ',' << static_cast<int>(rgb_output[i + 1])
+                  << ',' << static_cast<int>(rgb_output[i + 2]) << ')';
+    }
+    std::cout << '\n';
+
     return 0;
 }

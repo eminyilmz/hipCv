@@ -53,6 +53,19 @@
         "HIPCV_BUILD_EXAMPLES": "ON",
         "HIPCV_BUILD_TESTS": "ON"
       }
+    },
+    {
+      "name": "windows-ci-no-hip",
+      "displayName": "Windows CI without HIP",
+      "generator": "NMake Makefiles",
+      "binaryDir": "${sourceDir}/build/windows-ci-no-hip",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "HIPCV_ENABLE_HIP": "OFF",
+        "HIPCV_BUILD_EXAMPLES": "ON",
+        "HIPCV_BUILD_TESTS": "ON",
+        "HIPCV_BUILD_BENCHMARKS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -75,6 +88,10 @@
       "name": "windows-vs2026-no-hip-release",
       "configurePreset": "windows-vs2026-no-hip",
       "configuration": "Release"
+    },
+    {
+      "name": "windows-ci-no-hip",
+      "configurePreset": "windows-ci-no-hip"
     }
   ],
   "testPresets": [
@@ -97,6 +114,10 @@
       "name": "windows-vs2026-no-hip-release",
       "configurePreset": "windows-vs2026-no-hip",
       "configuration": "Release"
+    },
+    {
+      "name": "windows-ci-no-hip",
+      "configurePreset": "windows-ci-no-hip"
     }
   ]
 }

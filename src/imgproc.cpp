@@ -26,20 +26,46 @@ bool is_supported_color_conversion(const ImageShape& shape, ColorConversion code
         return shape.format == PixelFormat::bgr8;
     case ColorConversion::rgb_to_gray:
         return shape.format == PixelFormat::rgb8;
+    case ColorConversion::bgr_to_rgb:
+        return shape.format == PixelFormat::bgr8;
+    case ColorConversion::rgb_to_bgr:
+        return shape.format == PixelFormat::rgb8;
     }
 
     return false;
 }
 
-ImageShape gray_shape_from(const ImageShape& src) noexcept
+ImageShape color_conversion_shape_from(const ImageShape& src, ColorConversion code) noexcept
 {
-    return {
-        src.width,
-        src.height,
-        1,
-        static_cast<std::size_t>(src.width),
-        PixelFormat::gray8,
-    };
+    switch (code) {
+    case ColorConversion::bgr_to_gray:
+    case ColorConversion::rgb_to_gray:
+        return {
+            src.width,
+            src.height,
+            1,
+            static_cast<std::size_t>(src.width),
+            PixelFormat::gray8,
+        };
+    case ColorConversion::bgr_to_rgb:
+        return {
+            src.width,
+            src.height,
+            3,
+            static_cast<std::size_t>(src.width) * 3u,
+            PixelFormat::rgb8,
+        };
+    case ColorConversion::rgb_to_bgr:
+        return {
+            src.width,
+            src.height,
+            3,
+            static_cast<std::size_t>(src.width) * 3u,
+            PixelFormat::bgr8,
+        };
+    }
+
+    return {};
 }
 
 bool is_supported_resize_shape(const ImageShape& shape) noexcept
@@ -121,6 +147,29 @@ extern "C" __global__ void cvt_color_to_gray(
     const unsigned int gray = (77u * r + 150u * g + 29u * b + 128u) >> 8;
 
     dst[(static_cast<unsigned long long>(y) * dst_step) + x] = static_cast<unsigned char>(gray);
+}
+
+extern "C" __global__ void cvt_color_swap_rb(
+    const unsigned char* src,
+    unsigned char* dst,
+    int width,
+    int height,
+    unsigned long long src_step,
+    unsigned long long dst_step)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= width || y >= height) {
+        return;
+    }
+
+    const unsigned char* src_pixel = src + (static_cast<unsigned long long>(y) * src_step) + (x * 3);
+    unsigned char* dst_pixel = dst + (static_cast<unsigned long long>(y) * dst_step) + (x * 3);
+
+    dst_pixel[0] = src_pixel[2];
+    dst_pixel[1] = src_pixel[1];
+    dst_pixel[2] = src_pixel[0];
 }
 )";
 
@@ -290,7 +339,8 @@ extern "C" __global__ void gaussian_blur_gray8(
 
 struct CvtColorKernel {
     hipModule_t module = nullptr;
-    hipFunction_t function = nullptr;
+    hipFunction_t gray_function = nullptr;
+    hipFunction_t swap_rb_function = nullptr;
 
     ~CvtColorKernel()
     {
@@ -411,12 +461,12 @@ std::mutex& gaussian_blur_kernel_mutex() noexcept
 Status compile_cvt_color_kernel() noexcept
 {
     auto& kernel = cvt_color_kernel();
-    if (kernel.function != nullptr) {
+    if (kernel.gray_function != nullptr && kernel.swap_rb_function != nullptr) {
         return Status::success();
     }
 
     std::lock_guard<std::mutex> lock(cvt_color_kernel_mutex());
-    if (kernel.function != nullptr) {
+    if (kernel.gray_function != nullptr && kernel.swap_rb_function != nullptr) {
         return Status::success();
     }
 
@@ -463,14 +513,21 @@ Status compile_cvt_color_kernel() noexcept
         return {StatusCode::runtime_error, "hipModuleLoadData failed"};
     }
 
-    hipFunction_t function = nullptr;
-    if (hipModuleGetFunction(&function, module, "cvt_color_to_gray") != hipSuccess) {
+    hipFunction_t gray_function = nullptr;
+    if (hipModuleGetFunction(&gray_function, module, "cvt_color_to_gray") != hipSuccess) {
+        hipModuleUnload(module);
+        return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
+    }
+
+    hipFunction_t swap_rb_function = nullptr;
+    if (hipModuleGetFunction(&swap_rb_function, module, "cvt_color_swap_rb") != hipSuccess) {
         hipModuleUnload(module);
         return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
     }
 
     kernel.module = module;
-    kernel.function = function;
+    kernel.gray_function = gray_function;
+    kernel.swap_rb_function = swap_rb_function;
     return Status::success();
 }
 
@@ -753,7 +810,7 @@ Status cvtColor(const GpuMat& src, GpuMat& dst, ColorConversion code) noexcept
         return {StatusCode::invalid_argument, "unsupported color conversion"};
     }
 
-    if (auto status = dst.allocate(gray_shape_from(src_shape)); !status.ok()) {
+    if (auto status = dst.allocate(color_conversion_shape_from(src_shape, code)); !status.ok()) {
         return status;
     }
 
@@ -771,26 +828,42 @@ Status cvtColor(const GpuMat& src, GpuMat& dst, ColorConversion code) noexcept
         const int height = src_shape.height;
         const auto src_step = static_cast<unsigned long long>(src_shape.step_bytes);
         const auto dst_step = static_cast<unsigned long long>(dst_shape.step_bytes);
-        const int red_index = code == ColorConversion::bgr_to_gray ? 2 : 0;
-
-        void* args[] = {
-            const_cast<std::uint8_t**>(&src_ptr),
-            &dst_ptr,
-            const_cast<int*>(&width),
-            const_cast<int*>(&height),
-            const_cast<unsigned long long*>(&src_step),
-            const_cast<unsigned long long*>(&dst_step),
-            const_cast<int*>(&red_index),
-        };
 
         constexpr unsigned int block_x = 16;
         constexpr unsigned int block_y = 16;
         const auto grid_x = static_cast<unsigned int>((width + static_cast<int>(block_x) - 1) / static_cast<int>(block_x));
         const auto grid_y = static_cast<unsigned int>((height + static_cast<int>(block_y) - 1) / static_cast<int>(block_y));
 
-        if (hipModuleLaunchKernel(cvt_color_kernel().function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
-            dst.release();
-            return {StatusCode::runtime_error, "hipModuleLaunchKernel failed"};
+        if (code == ColorConversion::bgr_to_gray || code == ColorConversion::rgb_to_gray) {
+            const int red_index = code == ColorConversion::bgr_to_gray ? 2 : 0;
+            void* args[] = {
+                const_cast<std::uint8_t**>(&src_ptr),
+                &dst_ptr,
+                const_cast<int*>(&width),
+                const_cast<int*>(&height),
+                const_cast<unsigned long long*>(&src_step),
+                const_cast<unsigned long long*>(&dst_step),
+                const_cast<int*>(&red_index),
+            };
+
+            if (hipModuleLaunchKernel(cvt_color_kernel().gray_function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
+                dst.release();
+                return {StatusCode::runtime_error, "hipModuleLaunchKernel failed"};
+            }
+        } else {
+            void* args[] = {
+                const_cast<std::uint8_t**>(&src_ptr),
+                &dst_ptr,
+                const_cast<int*>(&width),
+                const_cast<int*>(&height),
+                const_cast<unsigned long long*>(&src_step),
+                const_cast<unsigned long long*>(&dst_step),
+            };
+
+            if (hipModuleLaunchKernel(cvt_color_kernel().swap_rb_function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
+                dst.release();
+                return {StatusCode::runtime_error, "hipModuleLaunchKernel failed"};
+            }
         }
 
         if (hipDeviceSynchronize() != hipSuccess) {
