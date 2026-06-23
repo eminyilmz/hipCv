@@ -15,6 +15,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(HIPCV_ENABLE_HIP "Enable AMD HIP SDK support when available" ON)
 option(HIPCV_BUILD_EXAMPLES "Build example executables" ON)
 option(HIPCV_BUILD_TESTS "Build tests" ON)
+option(HIPCV_BUILD_BENCHMARKS "Build benchmark executables" ON)
 
 set(HIPCV_HAS_HIP 0)
 
@@ -71,6 +72,14 @@ if(HIPCV_BUILD_EXAMPLES)
 
     add_executable(hipcv_gaussian_blur examples/gaussian_blur.cpp)
     target_link_libraries(hipcv_gaussian_blur PRIVATE hipcv)
+
+    add_executable(hipcv_preprocess_pipeline examples/preprocess_pipeline.cpp)
+    target_link_libraries(hipcv_preprocess_pipeline PRIVATE hipcv)
+endif()
+
+if(HIPCV_BUILD_BENCHMARKS)
+    add_executable(hipcv_preprocess_benchmark benchmarks/preprocess_benchmark.cpp)
+    target_link_libraries(hipcv_preprocess_benchmark PRIVATE hipcv)
 endif()
 
 if(HIPCV_BUILD_TESTS)

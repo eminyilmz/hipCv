@@ -364,3 +364,74 @@ The no-HIP preset was also validated after adding `gaussianBlur`:
 ```text
 100% tests passed, 0 tests failed out of 8
 ```
+
+## 2026-06-23: Chained Pipeline And Benchmark Harness
+
+### Feature
+
+- Added `hipcv_preprocess_pipeline`.
+- Added `hipcv_preprocess_benchmark`.
+- Added `HIPCV_BUILD_BENCHMARKS` CMake option.
+- The pipeline keeps intermediate data on the GPU:
+
+```text
+upload -> resize -> cvtColor -> gaussianBlur -> threshold -> download
+```
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_preprocess_pipeline.exe
+build\windows-vs2026\Release\hipcv_preprocess_benchmark.exe
+```
+
+Result:
+
+```text
+1/8 Test #1: hipcv_windows_smoke .............. Passed
+2/8 Test #2: hipcv_test_status ................ Passed
+3/8 Test #3: hipcv_test_gpu_mat_no_hip ........ Passed
+4/8 Test #4: hipcv_test_cvt_color ............. Passed
+5/8 Test #5: hipcv_test_resize ................ Passed
+6/8 Test #6: hipcv_test_threshold ............. Passed
+7/8 Test #7: hipcv_test_blur .................. Passed
+8/8 Test #8: hipcv_test_gaussian_blur ......... Passed
+100% tests passed, 0 tests failed out of 8
+```
+
+Pipeline output:
+
+```text
+preprocess pipeline: upload -> resize -> cvtColor -> gaussianBlur -> threshold -> download
+0 0 0 0 0 255 255 255
+0 0 0 0 0 255 255 255
+0 0 0 0 255 255 255 255
+0 0 0 0 255 255 255 255
+0 0 0 255 255 255 255 255
+0 0 255 255 255 255 255 255
+```
+
+Benchmark output on AMD Radeon RX 9070 XT:
+
+```text
+hipcv preprocess benchmark
+input: 1920x1080 BGR8
+pipeline: resize 640x360 -> BGR2GRAY -> gaussianBlur 3x3 -> threshold
+iterations: 20
+
+upload H2D                  0.419 ms
+GPU pipeline                0.243 ms
+download D2H                0.099 ms
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding the pipeline and benchmark
+executables:
+
+```text
+100% tests passed, 0 tests failed out of 8
+```

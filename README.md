@@ -118,11 +118,13 @@ Implemented or scaffolded:
 - Minimal `threshold` example.
 - Minimal `blur` example.
 - Minimal `gaussianBlur` example.
+- Chained preprocessing pipeline example.
+- Basic preprocessing benchmark executable.
 
 Next technical target:
 
 ```text
-chained preprocessing sample + basic benchmark harness
+supported operation matrix + invalid argument tests
 ```
 
 ## Quickstart
@@ -167,6 +169,13 @@ Then build:
 cmake --preset windows-vs2022
 cmake --build --preset windows-vs2022-release
 ctest --preset windows-vs2022-release
+```
+
+Useful HIP sample executables after building:
+
+```powershell
+.\build\windows-vs2022\Release\hipcv_preprocess_pipeline.exe
+.\build\windows-vs2022\Release\hipcv_preprocess_benchmark.exe
 ```
 
 ## Initial Target Platform

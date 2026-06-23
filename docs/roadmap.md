@@ -226,6 +226,8 @@ tests/test_copy.cpp
 tests/test_cvt_color.cpp
 tests/test_resize.cpp
 tests/test_threshold.cpp
+tests/test_blur.cpp
+tests/test_gaussian_blur.cpp
 ```
 
 ### Exit Criteria
@@ -242,13 +244,12 @@ Goal: measure whether `hipcv` is actually useful, not merely functional.
 
 - Add timing utilities for:
   - upload
-  - single operation
-  - chained operation
   - download
+  - chained operation
   - full pipeline
 - Test common image sizes:
-  - 720p
   - 1080p
+  - 720p
   - 4K
 - Compare against simple CPU reference implementations first.
 - Add optional OpenCV CPU baseline later.
@@ -261,7 +262,7 @@ Goal: measure whether `hipcv` is actually useful, not merely functional.
 upload -> download
 upload -> copy -> download
 upload -> cvtColor -> download
-upload -> resize -> cvtColor -> threshold -> download
+upload -> resize -> cvtColor -> gaussianBlur -> threshold -> download
 ```
 
 ### Deliverables
