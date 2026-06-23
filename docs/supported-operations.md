@@ -9,10 +9,10 @@ instead of doing surprising work.
 | Format | Channels | Notes |
 | --- | ---: | --- |
 | `gray8` | 1 | Main format for threshold and blur operations |
-| `rgb8` | 3 | Supported by nearest-neighbor resize, `RGB2GRAY`, and `RGB2BGR` |
-| `bgr8` | 3 | Supported by nearest-neighbor resize, `BGR2GRAY`, and `BGR2RGB` |
-| `rgba8` | 4 | Supported by nearest-neighbor resize |
-| `bgra8` | 4 | Supported by nearest-neighbor resize |
+| `rgb8` | 3 | Supported by resize, `RGB2GRAY`, and `RGB2BGR` |
+| `bgr8` | 3 | Supported by resize, `BGR2GRAY`, and `BGR2RGB` |
+| `rgba8` | 4 | Supported by resize |
+| `bgra8` | 4 | Supported by resize |
 
 ## Operations
 
@@ -23,7 +23,7 @@ instead of doing surprising work.
 | `GpuMat::download` | Non-empty `GpuMat` | Device-to-host copy | Host buffer | N/A |
 | `GpuMat::copyTo` | Non-empty `GpuMat` | Device-to-device copy | Same shape | N/A |
 | `cvtColor` | `bgr8`, `rgb8` | `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, `RGB2BGR` | `gray8`, `rgb8`, `bgr8` | N/A |
-| `resize` | `gray8`, `rgb8`, `bgr8`, `rgba8`, `bgra8` | nearest neighbor | Same format, requested size | N/A |
+| `resize` | `gray8`, `rgb8`, `bgr8`, `rgba8`, `bgra8` | nearest neighbor, bilinear | Same format, requested size | N/A |
 | `threshold` | `gray8` | binary, binary inverse | `gray8` | N/A |
 | `blur` | `gray8` | Positive odd kernel width and height | `gray8` | Clamp-to-edge |
 | `gaussianBlur` | `gray8` | 3x3 and 5x5 square kernels | `gray8` | Clamp-to-edge |
@@ -33,7 +33,7 @@ instead of doing surprising work.
 | Area | Not Yet Supported |
 | --- | --- |
 | `cvtColor` | Alpha formats, grayscale-to-color, HSV/Lab/YUV conversions |
-| `resize` | Bilinear, area, cubic, lanczos |
+| `resize` | Area, cubic, lanczos |
 | `threshold` | Trunc, to-zero, adaptive threshold |
 | `blur` | Multi-channel images, explicit anchor, border modes |
 | `gaussianBlur` | Multi-channel images, arbitrary sigma, broader kernel sizes, explicit border modes |

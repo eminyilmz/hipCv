@@ -203,6 +203,70 @@ extern "C" __global__ void resize_nearest_u8(
 }
 )";
 
+constexpr const char* kResizeBilinearKernelSource = R"(
+extern "C" __global__ void resize_bilinear_u8(
+    const unsigned char* src,
+    unsigned char* dst,
+    int src_width,
+    int src_height,
+    int dst_width,
+    int dst_height,
+    int channels,
+    unsigned long long src_step,
+    unsigned long long dst_step)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= dst_width || y >= dst_height) {
+        return;
+    }
+
+    const float scale_x = static_cast<float>(src_width) / static_cast<float>(dst_width);
+    const float scale_y = static_cast<float>(src_height) / static_cast<float>(dst_height);
+    float src_fx = (static_cast<float>(x) + 0.5f) * scale_x - 0.5f;
+    float src_fy = (static_cast<float>(y) + 0.5f) * scale_y - 0.5f;
+
+    if (src_fx < 0.0f) {
+        src_fx = 0.0f;
+    }
+    if (src_fy < 0.0f) {
+        src_fy = 0.0f;
+    }
+
+    int x0 = static_cast<int>(src_fx);
+    int y0 = static_cast<int>(src_fy);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    if (x1 >= src_width) {
+        x1 = src_width - 1;
+    }
+    if (y1 >= src_height) {
+        y1 = src_height - 1;
+    }
+
+    const float tx = src_fx - static_cast<float>(x0);
+    const float ty = src_fy - static_cast<float>(y0);
+
+    const unsigned char* row0 = src + (static_cast<unsigned long long>(y0) * src_step);
+    const unsigned char* row1 = src + (static_cast<unsigned long long>(y1) * src_step);
+    unsigned char* dst_pixel = dst + (static_cast<unsigned long long>(y) * dst_step) + (x * channels);
+
+    for (int channel = 0; channel < channels; ++channel) {
+        const float top_left = static_cast<float>(row0[(x0 * channels) + channel]);
+        const float top_right = static_cast<float>(row0[(x1 * channels) + channel]);
+        const float bottom_left = static_cast<float>(row1[(x0 * channels) + channel]);
+        const float bottom_right = static_cast<float>(row1[(x1 * channels) + channel]);
+        const float top = top_left + ((top_right - top_left) * tx);
+        const float bottom = bottom_left + ((bottom_right - bottom_left) * tx);
+        const float value = top + ((bottom - top) * ty);
+
+        dst_pixel[channel] = static_cast<unsigned char>(value + 0.5f);
+    }
+}
+)";
+
 constexpr const char* kThresholdKernelSource = R"(
 extern "C" __global__ void threshold_gray8(
     const unsigned char* src,
@@ -362,6 +426,18 @@ struct ResizeNearestKernel {
     }
 };
 
+struct ResizeBilinearKernel {
+    hipModule_t module = nullptr;
+    hipFunction_t function = nullptr;
+
+    ~ResizeBilinearKernel()
+    {
+        if (module != nullptr) {
+            hipModuleUnload(module);
+        }
+    }
+};
+
 struct ThresholdKernel {
     hipModule_t module = nullptr;
     hipFunction_t function = nullptr;
@@ -417,6 +493,18 @@ ResizeNearestKernel& resize_nearest_kernel() noexcept
 }
 
 std::mutex& resize_nearest_kernel_mutex() noexcept
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+ResizeBilinearKernel& resize_bilinear_kernel() noexcept
+{
+    static ResizeBilinearKernel kernel;
+    return kernel;
+}
+
+std::mutex& resize_bilinear_kernel_mutex() noexcept
 {
     static std::mutex mutex;
     return mutex;
@@ -795,6 +883,72 @@ Status compile_resize_nearest_kernel() noexcept
     return Status::success();
 }
 
+Status compile_resize_bilinear_kernel() noexcept
+{
+    auto& kernel = resize_bilinear_kernel();
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    std::lock_guard<std::mutex> lock(resize_bilinear_kernel_mutex());
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    int device = 0;
+    if (hipGetDevice(&device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDevice failed"};
+    }
+
+    hipDeviceProp_t props{};
+    if (hipGetDeviceProperties(&props, device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDeviceProperties failed"};
+    }
+
+    const std::string architecture = std::string("--gpu-architecture=") + props.gcnArchName;
+    const char* options[] = {architecture.c_str()};
+
+    hiprtcProgram program{};
+    if (hiprtcCreateProgram(&program, kResizeBilinearKernelSource, "resize_bilinear_u8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
+        return {StatusCode::runtime_error, "hiprtcCreateProgram failed"};
+    }
+
+    const auto compile_result = hiprtcCompileProgram(program, 1, options);
+    if (compile_result != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcCompileProgram failed"};
+    }
+
+    std::size_t code_size = 0;
+    if (hiprtcGetCodeSize(program, &code_size) != HIPRTC_SUCCESS || code_size == 0) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCodeSize failed"};
+    }
+
+    std::vector<char> code(code_size);
+    if (hiprtcGetCode(program, code.data()) != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCode failed"};
+    }
+
+    hiprtcDestroyProgram(&program);
+
+    hipModule_t module = nullptr;
+    if (hipModuleLoadData(&module, code.data()) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipModuleLoadData failed"};
+    }
+
+    hipFunction_t function = nullptr;
+    if (hipModuleGetFunction(&function, module, "resize_bilinear_u8") != hipSuccess) {
+        hipModuleUnload(module);
+        return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
+    }
+
+    kernel.module = module;
+    kernel.function = function;
+    return Status::success();
+}
+
 #endif
 
 } // namespace
@@ -891,7 +1045,7 @@ Status resize(const GpuMat& src, GpuMat& dst, int width, int height, ResizeInter
         return {StatusCode::invalid_argument, "destination size must be positive"};
     }
 
-    if (interpolation != ResizeInterpolation::nearest) {
+    if (interpolation != ResizeInterpolation::nearest && interpolation != ResizeInterpolation::bilinear) {
         return {StatusCode::invalid_argument, "unsupported resize interpolation"};
     }
 
@@ -906,7 +1060,12 @@ Status resize(const GpuMat& src, GpuMat& dst, int width, int height, ResizeInter
 
 #if HIPCV_HAS_HIP
     try {
-        if (auto status = compile_resize_nearest_kernel(); !status.ok()) {
+        if (interpolation == ResizeInterpolation::nearest) {
+            if (auto status = compile_resize_nearest_kernel(); !status.ok()) {
+                dst.release();
+                return status;
+            }
+        } else if (auto status = compile_resize_bilinear_kernel(); !status.ok()) {
             dst.release();
             return status;
         }
@@ -939,7 +1098,8 @@ Status resize(const GpuMat& src, GpuMat& dst, int width, int height, ResizeInter
         const auto grid_x = static_cast<unsigned int>((dst_width + static_cast<int>(block_x) - 1) / static_cast<int>(block_x));
         const auto grid_y = static_cast<unsigned int>((dst_height + static_cast<int>(block_y) - 1) / static_cast<int>(block_y));
 
-        if (hipModuleLaunchKernel(resize_nearest_kernel().function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
+        const auto function = interpolation == ResizeInterpolation::nearest ? resize_nearest_kernel().function : resize_bilinear_kernel().function;
+        if (hipModuleLaunchKernel(function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
             dst.release();
             return {StatusCode::runtime_error, "hipModuleLaunchKernel failed"};
         }

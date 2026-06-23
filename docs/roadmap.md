@@ -155,6 +155,7 @@ pipelines.
    - `RGB2BGR`
 2. `resize` initial pass
    - nearest neighbor
+   - bilinear
 3. `threshold` initial pass
    - binary
    - binary inverse
@@ -165,9 +166,7 @@ pipelines.
 
 ### Follow-Up Operation Modes
 
-1. `resize`
-   - bilinear
-2. `blur` and `gaussianBlur`
+1. `blur` and `gaussianBlur`
    - multi-channel variants
    - broader kernel sizes where useful
 

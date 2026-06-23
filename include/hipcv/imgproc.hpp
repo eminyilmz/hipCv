@@ -15,7 +15,8 @@ enum class ColorConversion {
 };
 
 enum class ResizeInterpolation {
-    nearest
+    nearest,
+    bilinear
 };
 
 enum class ThresholdType {

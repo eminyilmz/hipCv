@@ -512,6 +512,66 @@ Result:
 100% tests passed, 0 tests failed out of 10
 ```
 
+## 2026-06-23: Bilinear Resize Interpolation
+
+### Feature
+
+- Added `hipcv::ResizeInterpolation::bilinear`.
+- Added a HIPRTC `resize_bilinear_u8` kernel.
+- Bilinear resize supports the same MVP formats as nearest resize:
+  - `gray8`
+  - `rgb8`
+  - `bgr8`
+  - `rgba8`
+  - `bgra8`
+- Expanded `hipcv_test_resize` with CPU reference checks for gray and BGR
+  bilinear output.
+- Updated the `hipcv_resize` example to print nearest and bilinear output.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_resize.exe
+```
+
+Result:
+
+```text
+ 1/10 Test  #1: hipcv_windows_smoke ............... Passed
+ 2/10 Test  #2: hipcv_test_status ................. Passed
+ 3/10 Test  #3: hipcv_test_gpu_mat_no_hip ......... Passed
+ 4/10 Test  #4: hipcv_test_gpu_mat_roundtrip ...... Passed
+ 5/10 Test  #5: hipcv_test_cvt_color .............. Passed
+ 6/10 Test  #6: hipcv_test_resize ................. Passed
+ 7/10 Test  #7: hipcv_test_threshold .............. Passed
+ 8/10 Test  #8: hipcv_test_blur ................... Passed
+ 9/10 Test  #9: hipcv_test_gaussian_blur .......... Passed
+10/10 Test #10: hipcv_test_imgproc_invalid_args ... Passed
+100% tests passed, 0 tests failed out of 10
+resize nearest 3x2 -> 6x4:
+1 1 2 2 3 3
+1 1 2 2 3 3
+4 4 5 5 6 6
+4 4 5 5 6 6
+resize bilinear 3x2 -> 5x3:
+1 1 2 3 3
+3 3 4 4 5
+4 4 5 6 6
+```
+
+### No-HIP And CI Checks
+
+The Visual Studio 2026 no-HIP preset and NMake CI preset were also validated
+after adding bilinear resize:
+
+```text
+windows-vs2026-no-hip: 100% tests passed, 0 tests failed out of 10
+windows-ci-no-hip: 100% tests passed, 0 tests failed out of 10
+```
+
 ## 2026-06-23: BGR/RGB Channel Swap Conversion
 
 ### Feature

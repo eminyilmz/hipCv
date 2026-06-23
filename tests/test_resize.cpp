@@ -42,12 +42,64 @@ std::vector<std::uint8_t> resize_nearest_reference(
     return dst;
 }
 
+std::vector<std::uint8_t> resize_bilinear_reference(
+    const std::vector<std::uint8_t>& src,
+    int src_width,
+    int src_height,
+    int channels,
+    int dst_width,
+    int dst_height)
+{
+    std::vector<std::uint8_t> dst(static_cast<std::size_t>(dst_width * dst_height * channels));
+
+    const float scale_x = static_cast<float>(src_width) / static_cast<float>(dst_width);
+    const float scale_y = static_cast<float>(src_height) / static_cast<float>(dst_height);
+
+    for (int y = 0; y < dst_height; ++y) {
+        float src_fy = (static_cast<float>(y) + 0.5f) * scale_y - 0.5f;
+        if (src_fy < 0.0f) {
+            src_fy = 0.0f;
+        }
+
+        const int y0 = static_cast<int>(src_fy);
+        const int y1 = y0 + 1 >= src_height ? src_height - 1 : y0 + 1;
+        const float ty = src_fy - static_cast<float>(y0);
+
+        for (int x = 0; x < dst_width; ++x) {
+            float src_fx = (static_cast<float>(x) + 0.5f) * scale_x - 0.5f;
+            if (src_fx < 0.0f) {
+                src_fx = 0.0f;
+            }
+
+            const int x0 = static_cast<int>(src_fx);
+            const int x1 = x0 + 1 >= src_width ? src_width - 1 : x0 + 1;
+            const float tx = src_fx - static_cast<float>(x0);
+
+            for (int channel = 0; channel < channels; ++channel) {
+                const auto top_left = static_cast<float>(src[static_cast<std::size_t>((y0 * src_width + x0) * channels + channel)]);
+                const auto top_right = static_cast<float>(src[static_cast<std::size_t>((y0 * src_width + x1) * channels + channel)]);
+                const auto bottom_left = static_cast<float>(src[static_cast<std::size_t>((y1 * src_width + x0) * channels + channel)]);
+                const auto bottom_right = static_cast<float>(src[static_cast<std::size_t>((y1 * src_width + x1) * channels + channel)]);
+                const float top = top_left + ((top_right - top_left) * tx);
+                const float bottom = bottom_left + ((bottom_right - bottom_left) * tx);
+                const float value = top + ((bottom - top) * ty);
+
+                const auto dst_index = static_cast<std::size_t>((y * dst_width + x) * channels + channel);
+                dst[dst_index] = static_cast<std::uint8_t>(value + 0.5f);
+            }
+        }
+    }
+
+    return dst;
+}
+
 bool run_case(
     const std::vector<std::uint8_t>& input,
     hipcv::PixelFormat format,
     int channels,
     int dst_width,
-    int dst_height)
+    int dst_height,
+    hipcv::ResizeInterpolation interpolation = hipcv::ResizeInterpolation::nearest)
 {
     const hipcv::ImageShape shape{
         3,
@@ -65,7 +117,7 @@ bool run_case(
     }
 
     hipcv::GpuMat resized;
-    status = hipcv::resize(src, resized, dst_width, dst_height);
+    status = hipcv::resize(src, resized, dst_width, dst_height, interpolation);
     if (!status.ok()) {
         std::cerr << "resize failed: " << status.message() << '\n';
         return false;
@@ -84,7 +136,9 @@ bool run_case(
         return false;
     }
 
-    const auto expected = resize_nearest_reference(input, shape.width, shape.height, channels, dst_width, dst_height);
+    const auto expected = interpolation == hipcv::ResizeInterpolation::nearest
+        ? resize_nearest_reference(input, shape.width, shape.height, channels, dst_width, dst_height)
+        : resize_bilinear_reference(input, shape.width, shape.height, channels, dst_width, dst_height);
     if (output != expected) {
         std::cerr << "resize output mismatch\n";
         return false;
@@ -124,6 +178,12 @@ int main()
 
     expect(run_case(gray, hipcv::PixelFormat::gray8, 1, 6, 4), "gray nearest resize should match reference");
     expect(run_case(bgr, hipcv::PixelFormat::bgr8, 3, 2, 1), "BGR nearest resize should match reference");
+    expect(
+        run_case(gray, hipcv::PixelFormat::gray8, 1, 5, 3, hipcv::ResizeInterpolation::bilinear),
+        "gray bilinear resize should match reference");
+    expect(
+        run_case(bgr, hipcv::PixelFormat::bgr8, 3, 5, 3, hipcv::ResizeInterpolation::bilinear),
+        "BGR bilinear resize should match reference");
 
     return failures == 0 ? 0 : 1;
 }

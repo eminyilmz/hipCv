@@ -108,7 +108,7 @@ Implemented or scaffolded:
 - `GpuMat::download`.
 - `GpuMat::copyTo`.
 - `cvtColor` with `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, and `RGB2BGR`.
-- `resize` with nearest-neighbor interpolation.
+- `resize` with nearest-neighbor and bilinear interpolation.
 - `threshold` with binary and binary-inverse modes for `gray8`.
 - `blur` with box filtering for `gray8`.
 - `gaussianBlur` with 3x3 and 5x5 kernels for `gray8`.
@@ -130,7 +130,7 @@ Implemented or scaffolded:
 Next technical target:
 
 ```text
-bilinear resize interpolation
+multi-channel blur support
 ```
 
 ## Quickstart

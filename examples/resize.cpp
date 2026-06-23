@@ -56,5 +56,25 @@ int main()
         std::cout << '\n';
     }
 
+    hipcv::GpuMat bilinear;
+    if (auto status = hipcv::resize(src, bilinear, 5, 3, hipcv::ResizeInterpolation::bilinear); !status.ok()) {
+        std::cerr << "resize bilinear failed: " << status.message() << '\n';
+        return 1;
+    }
+
+    std::vector<std::uint8_t> bilinear_output(5 * 3);
+    if (auto status = bilinear.download(bilinear_output.data(), bilinear_output.size()); !status.ok()) {
+        std::cerr << "download failed: " << status.message() << '\n';
+        return 1;
+    }
+
+    std::cout << "resize bilinear 3x2 -> 5x3:\n";
+    for (int y = 0; y < 3; ++y) {
+        for (int x = 0; x < 5; ++x) {
+            std::cout << static_cast<int>(bilinear_output[static_cast<std::size_t>(y * 5 + x)]) << ' ';
+        }
+        std::cout << '\n';
+    }
+
     return 0;
 }
