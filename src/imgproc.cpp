@@ -102,7 +102,20 @@ bool is_supported_threshold_shape(const ImageShape& shape) noexcept
 
 bool is_supported_blur_shape(const ImageShape& shape) noexcept
 {
-    return shape.format == PixelFormat::gray8 && shape.channels == 1;
+    switch (shape.format) {
+    case PixelFormat::gray8:
+        return shape.channels == 1;
+    case PixelFormat::rgb8:
+    case PixelFormat::bgr8:
+        return shape.channels == 3;
+    case PixelFormat::rgba8:
+    case PixelFormat::bgra8:
+        return shape.channels == 4;
+    case PixelFormat::unknown:
+        return false;
+    }
+
+    return false;
 }
 
 bool is_supported_gaussian_blur_shape(const ImageShape& shape) noexcept
@@ -294,13 +307,14 @@ extern "C" __global__ void threshold_gray8(
 )";
 
 constexpr const char* kBlurKernelSource = R"(
-extern "C" __global__ void blur_gray8(
+extern "C" __global__ void blur_u8(
     const unsigned char* src,
     unsigned char* dst,
     int width,
     int height,
     unsigned long long src_step,
     unsigned long long dst_step,
+    int channels,
     int kernel_width,
     int kernel_height)
 {
@@ -313,30 +327,35 @@ extern "C" __global__ void blur_gray8(
 
     const int radius_x = kernel_width / 2;
     const int radius_y = kernel_height / 2;
-    unsigned int sum = 0;
+    unsigned char* dst_pixel = dst + (static_cast<unsigned long long>(y) * dst_step) + (x * channels);
 
-    for (int ky = 0; ky < kernel_height; ++ky) {
-        int src_y = y + ky - radius_y;
-        if (src_y < 0) {
-            src_y = 0;
-        } else if (src_y >= height) {
-            src_y = height - 1;
-        }
+    for (int channel = 0; channel < channels; ++channel) {
+        unsigned int sum = 0;
 
-        for (int kx = 0; kx < kernel_width; ++kx) {
-            int src_x = x + kx - radius_x;
-            if (src_x < 0) {
-                src_x = 0;
-            } else if (src_x >= width) {
-                src_x = width - 1;
+        for (int ky = 0; ky < kernel_height; ++ky) {
+            int src_y = y + ky - radius_y;
+            if (src_y < 0) {
+                src_y = 0;
+            } else if (src_y >= height) {
+                src_y = height - 1;
             }
 
-            sum += src[(static_cast<unsigned long long>(src_y) * src_step) + src_x];
-        }
-    }
+            for (int kx = 0; kx < kernel_width; ++kx) {
+                int src_x = x + kx - radius_x;
+                if (src_x < 0) {
+                    src_x = 0;
+                } else if (src_x >= width) {
+                    src_x = width - 1;
+                }
 
-    const unsigned int area = static_cast<unsigned int>(kernel_width * kernel_height);
-    dst[(static_cast<unsigned long long>(y) * dst_step) + x] = static_cast<unsigned char>((sum + (area / 2u)) / area);
+                const unsigned char* src_pixel = src + (static_cast<unsigned long long>(src_y) * src_step) + (src_x * channels);
+                sum += src_pixel[channel];
+            }
+        }
+
+        const unsigned int area = static_cast<unsigned int>(kernel_width * kernel_height);
+        dst_pixel[channel] = static_cast<unsigned char>((sum + (area / 2u)) / area);
+    }
 }
 )";
 
@@ -645,7 +664,7 @@ Status compile_blur_kernel() noexcept
     const char* options[] = {architecture.c_str()};
 
     hiprtcProgram program{};
-    if (hiprtcCreateProgram(&program, kBlurKernelSource, "blur_gray8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
+    if (hiprtcCreateProgram(&program, kBlurKernelSource, "blur_u8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
         return {StatusCode::runtime_error, "hiprtcCreateProgram failed"};
     }
 
@@ -675,7 +694,7 @@ Status compile_blur_kernel() noexcept
     }
 
     hipFunction_t function = nullptr;
-    if (hipModuleGetFunction(&function, module, "blur_gray8") != hipSuccess) {
+    if (hipModuleGetFunction(&function, module, "blur_u8") != hipSuccess) {
         hipModuleUnload(module);
         return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
     }
@@ -1205,7 +1224,7 @@ Status blur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel_height)
 
     const auto src_shape = src.shape();
     if (!is_supported_blur_shape(src_shape)) {
-        return {StatusCode::invalid_argument, "blur currently supports gray8 only"};
+        return {StatusCode::invalid_argument, "unsupported blur image format"};
     }
 
     if (auto status = dst.allocate(same_shape_as(src_shape)); !status.ok()) {
@@ -1224,6 +1243,7 @@ Status blur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel_height)
         auto* dst_ptr = static_cast<std::uint8_t*>(dst.data());
         const int width = src_shape.width;
         const int height = src_shape.height;
+        const int channels = src_shape.channels;
         const auto src_step = static_cast<unsigned long long>(src_shape.step_bytes);
         const auto dst_step = static_cast<unsigned long long>(dst_shape.step_bytes);
 
@@ -1234,6 +1254,7 @@ Status blur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel_height)
             const_cast<int*>(&height),
             const_cast<unsigned long long*>(&src_step),
             const_cast<unsigned long long*>(&dst_step),
+            const_cast<int*>(&channels),
             &kernel_width,
             &kernel_height,
         };

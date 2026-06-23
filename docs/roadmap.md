@@ -160,13 +160,13 @@ pipelines.
    - binary
    - binary inverse
 4. `blur` initial pass
-   - box blur for `gray8`
+   - box blur for `gray8`, `rgb8`, `bgr8`, `rgba8`, and `bgra8`
 5. `gaussianBlur` initial pass
    - 3x3 and 5x5 fixed kernels for `gray8`
 
 ### Follow-Up Operation Modes
 
-1. `blur` and `gaussianBlur`
+1. `gaussianBlur`
    - multi-channel variants
    - broader kernel sizes where useful
 

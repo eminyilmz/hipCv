@@ -31,6 +31,7 @@ std::vector<std::uint8_t> blur_reference(
     const std::vector<std::uint8_t>& src,
     int width,
     int height,
+    int channels,
     int kernel_width,
     int kernel_height)
 {
@@ -41,37 +42,40 @@ std::vector<std::uint8_t> blur_reference(
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            unsigned int sum = 0;
+            for (int channel = 0; channel < channels; ++channel) {
+                unsigned int sum = 0;
 
-            for (int ky = 0; ky < kernel_height; ++ky) {
-                const int src_y = clamp(y + ky - radius_y, 0, height - 1);
-                for (int kx = 0; kx < kernel_width; ++kx) {
-                    const int src_x = clamp(x + kx - radius_x, 0, width - 1);
-                    sum += src[static_cast<std::size_t>(src_y * width + src_x)];
+                for (int ky = 0; ky < kernel_height; ++ky) {
+                    const int src_y = clamp(y + ky - radius_y, 0, height - 1);
+                    for (int kx = 0; kx < kernel_width; ++kx) {
+                        const int src_x = clamp(x + kx - radius_x, 0, width - 1);
+                        sum += src[static_cast<std::size_t>((src_y * width + src_x) * channels + channel)];
+                    }
                 }
-            }
 
-            dst[static_cast<std::size_t>(y * width + x)] = static_cast<std::uint8_t>((sum + (area / 2u)) / area);
+                dst[static_cast<std::size_t>((y * width + x) * channels + channel)] = static_cast<std::uint8_t>((sum + (area / 2u)) / area);
+            }
         }
     }
 
     return dst;
 }
 
-bool run_case(int kernel_width, int kernel_height)
+bool run_case(
+    const std::vector<std::uint8_t>& input,
+    hipcv::PixelFormat format,
+    int width,
+    int height,
+    int channels,
+    int kernel_width,
+    int kernel_height)
 {
-    const std::vector<std::uint8_t> input = {
-        10, 20, 30, 40,
-        50, 60, 70, 80,
-        90, 100, 110, 120,
-    };
-
     const hipcv::ImageShape shape{
-        4,
-        3,
-        1,
+        width,
+        height,
+        channels,
         0,
-        hipcv::PixelFormat::gray8,
+        format,
     };
 
     hipcv::GpuMat src;
@@ -101,7 +105,7 @@ bool run_case(int kernel_width, int kernel_height)
         return false;
     }
 
-    const auto expected = blur_reference(input, shape.width, shape.height, kernel_width, kernel_height);
+    const auto expected = blur_reference(input, shape.width, shape.height, shape.channels, kernel_width, kernel_height);
     if (output != expected) {
         std::cerr << "blur output mismatch\n";
         return false;
@@ -125,8 +129,21 @@ int main()
         return 0;
     }
 
-    expect(run_case(3, 3), "3x3 blur should match reference");
-    expect(run_case(1, 3), "1x3 blur should match reference");
+    const std::vector<std::uint8_t> gray = {
+        10, 20, 30, 40,
+        50, 60, 70, 80,
+        90, 100, 110, 120,
+    };
+
+    const std::vector<std::uint8_t> bgr = {
+        10, 20, 30, 40, 50, 60, 70, 80, 90,
+        11, 21, 31, 41, 51, 61, 71, 81, 91,
+        12, 22, 32, 42, 52, 62, 72, 82, 92,
+    };
+
+    expect(run_case(gray, hipcv::PixelFormat::gray8, 4, 3, 1, 3, 3), "3x3 gray blur should match reference");
+    expect(run_case(gray, hipcv::PixelFormat::gray8, 4, 3, 1, 1, 3), "1x3 gray blur should match reference");
+    expect(run_case(bgr, hipcv::PixelFormat::bgr8, 3, 3, 3, 3, 3), "3x3 BGR blur should match reference");
 
     return failures == 0 ? 0 : 1;
 }

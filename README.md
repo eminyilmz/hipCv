@@ -110,7 +110,7 @@ Implemented or scaffolded:
 - `cvtColor` with `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, and `RGB2BGR`.
 - `resize` with nearest-neighbor and bilinear interpolation.
 - `threshold` with binary and binary-inverse modes for `gray8`.
-- `blur` with box filtering for `gray8`.
+- `blur` with box filtering for `gray8`, `rgb8`, `bgr8`, `rgba8`, and `bgra8`.
 - `gaussianBlur` with 3x3 and 5x5 kernels for `gray8`.
 - First HIPRTC-backed image kernel.
 - Windows smoke example.
@@ -130,7 +130,7 @@ Implemented or scaffolded:
 Next technical target:
 
 ```text
-multi-channel blur support
+multi-channel gaussianBlur support
 ```
 
 ## Quickstart

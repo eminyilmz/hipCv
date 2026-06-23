@@ -18,7 +18,7 @@ as a compatibility promise.
 | `cv::cuda::cvtColor` | `hipcv::cvtColor` | `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, `RGB2BGR` |
 | `cv::cuda::resize` | `hipcv::resize` | Nearest neighbor, bilinear |
 | `cv::cuda::threshold` | `hipcv::threshold` | Binary, binary inverse for `gray8` |
-| `cv::cuda::blur` | `hipcv::blur` | Box blur for `gray8` |
+| `cv::cuda::blur` | `hipcv::blur` | Box blur for `gray8`, `rgb8`, `bgr8`, `rgba8`, `bgra8` |
 | `cv::cuda::GaussianBlur` | `hipcv::gaussianBlur` | 3x3 and 5x5 for `gray8` |
 | `cv::cuda::Stream` | Not exposed yet | Planned carefully later |
 
@@ -94,7 +94,8 @@ The MVP is intentionally narrow:
 
 - `cvtColor` supports `BGR2GRAY`, `RGB2GRAY`, `BGR2RGB`, and `RGB2BGR`.
 - `resize` supports nearest neighbor and bilinear interpolation.
-- `threshold`, `blur`, and `gaussianBlur` currently operate on `gray8`.
+- `threshold` and `gaussianBlur` currently operate on `gray8`.
+- `blur` supports `gray8`, `rgb8`, `bgr8`, `rgba8`, and `bgra8`.
 - `gaussianBlur` supports 3x3 and 5x5 square kernels.
 
 See [Supported operations](supported-operations.md) for the current matrix.

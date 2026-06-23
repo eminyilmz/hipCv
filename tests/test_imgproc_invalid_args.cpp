@@ -92,9 +92,17 @@ void check_hip_validation_paths()
         0,
         hipcv::PixelFormat::bgr8,
     };
+    const hipcv::ImageShape unknown_shape{
+        2,
+        2,
+        1,
+        0,
+        hipcv::PixelFormat::unknown,
+    };
 
     auto gray = upload_or_fail(gray_pixels, gray_shape, "gray");
     auto bgr = upload_or_fail(bgr_pixels, bgr_shape, "bgr");
+    auto unknown = upload_or_fail(gray_pixels, unknown_shape, "unknown");
     if (failures != 0) {
         return;
     }
@@ -132,9 +140,9 @@ void check_hip_validation_paths()
         "blur should reject even kernel width");
 
     expect_code(
-        hipcv::blur(bgr, dst, 3, 3),
+        hipcv::blur(unknown, dst, 3, 3),
         hipcv::StatusCode::invalid_argument,
-        "blur should reject non-gray source");
+        "blur should reject unsupported image format");
 
     expect_code(
         hipcv::gaussianBlur(gray, dst, 3, 5),
