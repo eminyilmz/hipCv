@@ -123,13 +123,14 @@ Implemented or scaffolded:
 - Basic preprocessing benchmark executable.
 - Supported operation matrix.
 - API design notes.
+- OpenCV CUDA migration notes.
 - GPU `GpuMat` roundtrip, copy, and move-semantics tests.
 - No-HIP Windows GitHub Actions workflow.
 
 Next technical target:
 
 ```text
-OpenCV CUDA migration notes
+BGR2RGB/RGB2BGR color conversion
 ```
 
 ## Quickstart
@@ -224,6 +225,7 @@ exit criteria.
 - [Roadmap](docs/roadmap.md)
 - [Supported operations](docs/supported-operations.md)
 - [API design notes](docs/api-design.md)
+- [OpenCV CUDA migration notes](docs/opencv-cuda-migration.md)
 - [Windows development notes](docs/windows-development.md)
 - [Market positioning](docs/market-positioning.md)
 - [Validation log](docs/validation-log.md)

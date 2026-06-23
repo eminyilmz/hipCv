@@ -512,6 +512,20 @@ Result:
 100% tests passed, 0 tests failed out of 10
 ```
 
+## 2026-06-23: OpenCV CUDA Migration Notes
+
+### Feature
+
+- Added `docs/opencv-cuda-migration.md`.
+- Documented concept mapping from OpenCV CUDA to `hipcv`.
+- Added a small preprocessing porting example.
+- Linked the migration notes from the README.
+
+### Verification
+
+- Documentation-only change.
+- Ran `git diff --check` after editing.
+
 ### No-HIP Check
 
 The no-HIP preset was also validated after adding the GPU roundtrip test. The
