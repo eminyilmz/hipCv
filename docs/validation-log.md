@@ -520,3 +520,52 @@ roundtrip test skips GPU checks when HIP is disabled.
 ```text
 100% tests passed, 0 tests failed out of 10
 ```
+
+## 2026-06-23: No-HIP Windows CI Workflow
+
+### Feature
+
+- Added `.github/workflows/no-hip.yml`.
+- The workflow runs on `windows-latest`.
+- It validates the no-HIP contributor path with:
+  - `cmake --fresh --preset windows-vs2022-no-hip`
+  - `cmake --build --preset windows-vs2022-no-hip-release`
+  - `ctest --preset windows-vs2022-no-hip-release --output-on-failure`
+- Added a README badge for the workflow.
+
+### Local Verification
+
+The workflow itself runs on GitHub after push or pull request creation. The
+workflow uses the Visual Studio 2022 no-HIP preset because `windows-latest`
+provides Visual Studio 2022:
+
+```powershell
+cmake --fresh --preset windows-vs2022-no-hip
+cmake --build --preset windows-vs2022-no-hip-release
+ctest --preset windows-vs2022-no-hip-release --output-on-failure
+```
+
+This local machine does not have Visual Studio 2022 installed, so the equivalent
+no-HIP validation was run locally with the Visual Studio 2026 no-HIP preset:
+
+```powershell
+cmake --fresh --preset windows-vs2026-no-hip
+cmake --build --preset windows-vs2026-no-hip-release
+ctest --preset windows-vs2026-no-hip-release --output-on-failure
+```
+
+Result:
+
+```text
+ 1/10 Test  #1: hipcv_windows_smoke ............... Passed
+ 2/10 Test  #2: hipcv_test_status ................. Passed
+ 3/10 Test  #3: hipcv_test_gpu_mat_no_hip ......... Passed
+ 4/10 Test  #4: hipcv_test_gpu_mat_roundtrip ...... Passed
+ 5/10 Test  #5: hipcv_test_cvt_color .............. Passed
+ 6/10 Test  #6: hipcv_test_resize ................. Passed
+ 7/10 Test  #7: hipcv_test_threshold .............. Passed
+ 8/10 Test  #8: hipcv_test_blur ................... Passed
+ 9/10 Test  #9: hipcv_test_gaussian_blur .......... Passed
+10/10 Test #10: hipcv_test_imgproc_invalid_args ... Passed
+100% tests passed, 0 tests failed out of 10
+```

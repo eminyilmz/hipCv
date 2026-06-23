@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="docs/roadmap.md"><img alt="Roadmap" src="https://img.shields.io/badge/roadmap-active-F97316"></a>
+  <a href="https://github.com/eminyilmz/hipCv/actions/workflows/no-hip.yml"><img alt="No-HIP Windows CI" src="https://github.com/eminyilmz/hipCv/actions/workflows/no-hip.yml/badge.svg"></a>
   <img alt="Status" src="https://img.shields.io/badge/status-early%20MVP-111827">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20first-2563EB">
   <img alt="Backend" src="https://img.shields.io/badge/backend-AMD%20HIP-DC2626">
@@ -123,11 +124,12 @@ Implemented or scaffolded:
 - Supported operation matrix.
 - API design notes.
 - GPU `GpuMat` roundtrip, copy, and move-semantics tests.
+- No-HIP Windows GitHub Actions workflow.
 
 Next technical target:
 
 ```text
-CI workflow for no-HIP build checks
+OpenCV CUDA migration notes
 ```
 
 ## Quickstart

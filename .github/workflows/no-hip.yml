@@ -1,0 +1,31 @@
+name: No-HIP Windows CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build and test without HIP
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake --fresh --preset windows-vs2022-no-hip
+
+      - name: Build
+        run: cmake --build --preset windows-vs2022-no-hip-release
+
+      - name: Test
+        run: ctest --preset windows-vs2022-no-hip-release --output-on-failure
