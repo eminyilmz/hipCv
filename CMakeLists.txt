@@ -59,6 +59,15 @@ if(HIPCV_BUILD_EXAMPLES)
 
     add_executable(hipcv_cvt_color examples/cvt_color.cpp)
     target_link_libraries(hipcv_cvt_color PRIVATE hipcv)
+
+    add_executable(hipcv_resize examples/resize.cpp)
+    target_link_libraries(hipcv_resize PRIVATE hipcv)
+
+    add_executable(hipcv_threshold examples/threshold.cpp)
+    target_link_libraries(hipcv_threshold PRIVATE hipcv)
+
+    add_executable(hipcv_blur examples/blur.cpp)
+    target_link_libraries(hipcv_blur PRIVATE hipcv)
 endif()
 
 if(HIPCV_BUILD_TESTS)
@@ -77,4 +86,7 @@ if(HIPCV_BUILD_TESTS)
     hipcv_add_test(hipcv_test_status tests/test_status.cpp)
     hipcv_add_test(hipcv_test_gpu_mat_no_hip tests/test_gpu_mat_no_hip.cpp)
     hipcv_add_test(hipcv_test_cvt_color tests/test_cvt_color.cpp)
+    hipcv_add_test(hipcv_test_resize tests/test_resize.cpp)
+    hipcv_add_test(hipcv_test_threshold tests/test_threshold.cpp)
+    hipcv_add_test(hipcv_test_blur tests/test_blur.cpp)
 endif()

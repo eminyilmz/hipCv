@@ -107,14 +107,20 @@ Implemented or scaffolded:
 - `GpuMat::download`.
 - `GpuMat::copyTo`.
 - `cvtColor` with `BGR2GRAY` and `RGB2GRAY`.
+- `resize` with nearest-neighbor interpolation.
+- `threshold` with binary and binary-inverse modes for `gray8`.
+- `blur` with box filtering for `gray8`.
 - First HIPRTC-backed image kernel.
 - Windows smoke example.
 - Minimal `cvtColor` example.
+- Minimal `resize` example.
+- Minimal `threshold` example.
+- Minimal `blur` example.
 
 Next technical target:
 
 ```text
-resize nearest neighbor
+gaussianBlur
 ```
 
 ## Quickstart

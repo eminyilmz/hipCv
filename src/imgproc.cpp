@@ -42,6 +42,54 @@ ImageShape gray_shape_from(const ImageShape& src) noexcept
     };
 }
 
+bool is_supported_resize_shape(const ImageShape& shape) noexcept
+{
+    switch (shape.format) {
+    case PixelFormat::gray8:
+    case PixelFormat::rgb8:
+    case PixelFormat::bgr8:
+    case PixelFormat::rgba8:
+    case PixelFormat::bgra8:
+        return shape.channels == 1 || shape.channels == 3 || shape.channels == 4;
+    case PixelFormat::unknown:
+        return false;
+    }
+
+    return false;
+}
+
+ImageShape resized_shape_from(const ImageShape& src, int width, int height) noexcept
+{
+    return {
+        width,
+        height,
+        src.channels,
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(src.channels),
+        src.format,
+    };
+}
+
+bool is_supported_threshold_shape(const ImageShape& shape) noexcept
+{
+    return shape.format == PixelFormat::gray8 && shape.channels == 1;
+}
+
+bool is_supported_blur_shape(const ImageShape& shape) noexcept
+{
+    return shape.format == PixelFormat::gray8 && shape.channels == 1;
+}
+
+ImageShape same_shape_as(const ImageShape& src) noexcept
+{
+    return {
+        src.width,
+        src.height,
+        src.channels,
+        src.step_bytes,
+        src.format,
+    };
+}
+
 #if HIPCV_HAS_HIP
 
 constexpr const char* kCvtColorKernelSource = R"(
@@ -71,11 +119,150 @@ extern "C" __global__ void cvt_color_to_gray(
 }
 )";
 
+constexpr const char* kResizeNearestKernelSource = R"(
+extern "C" __global__ void resize_nearest_u8(
+    const unsigned char* src,
+    unsigned char* dst,
+    int src_width,
+    int src_height,
+    int dst_width,
+    int dst_height,
+    int channels,
+    unsigned long long src_step,
+    unsigned long long dst_step)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= dst_width || y >= dst_height) {
+        return;
+    }
+
+    const int src_x = (x * src_width) / dst_width;
+    const int src_y = (y * src_height) / dst_height;
+    const unsigned char* src_pixel = src + (static_cast<unsigned long long>(src_y) * src_step) + (src_x * channels);
+    unsigned char* dst_pixel = dst + (static_cast<unsigned long long>(y) * dst_step) + (x * channels);
+
+    for (int channel = 0; channel < channels; ++channel) {
+        dst_pixel[channel] = src_pixel[channel];
+    }
+}
+)";
+
+constexpr const char* kThresholdKernelSource = R"(
+extern "C" __global__ void threshold_gray8(
+    const unsigned char* src,
+    unsigned char* dst,
+    int width,
+    int height,
+    unsigned long long src_step,
+    unsigned long long dst_step,
+    unsigned int threshold_value,
+    unsigned int max_value,
+    int inverse)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= width || y >= height) {
+        return;
+    }
+
+    const unsigned char value = src[(static_cast<unsigned long long>(y) * src_step) + x];
+    const bool pass = value > threshold_value;
+    const unsigned char out = (pass != (inverse != 0)) ? static_cast<unsigned char>(max_value) : 0;
+    dst[(static_cast<unsigned long long>(y) * dst_step) + x] = out;
+}
+)";
+
+constexpr const char* kBlurKernelSource = R"(
+extern "C" __global__ void blur_gray8(
+    const unsigned char* src,
+    unsigned char* dst,
+    int width,
+    int height,
+    unsigned long long src_step,
+    unsigned long long dst_step,
+    int kernel_width,
+    int kernel_height)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= width || y >= height) {
+        return;
+    }
+
+    const int radius_x = kernel_width / 2;
+    const int radius_y = kernel_height / 2;
+    unsigned int sum = 0;
+
+    for (int ky = 0; ky < kernel_height; ++ky) {
+        int src_y = y + ky - radius_y;
+        if (src_y < 0) {
+            src_y = 0;
+        } else if (src_y >= height) {
+            src_y = height - 1;
+        }
+
+        for (int kx = 0; kx < kernel_width; ++kx) {
+            int src_x = x + kx - radius_x;
+            if (src_x < 0) {
+                src_x = 0;
+            } else if (src_x >= width) {
+                src_x = width - 1;
+            }
+
+            sum += src[(static_cast<unsigned long long>(src_y) * src_step) + src_x];
+        }
+    }
+
+    const unsigned int area = static_cast<unsigned int>(kernel_width * kernel_height);
+    dst[(static_cast<unsigned long long>(y) * dst_step) + x] = static_cast<unsigned char>((sum + (area / 2u)) / area);
+}
+)";
+
 struct CvtColorKernel {
     hipModule_t module = nullptr;
     hipFunction_t function = nullptr;
 
     ~CvtColorKernel()
+    {
+        if (module != nullptr) {
+            hipModuleUnload(module);
+        }
+    }
+};
+
+struct ResizeNearestKernel {
+    hipModule_t module = nullptr;
+    hipFunction_t function = nullptr;
+
+    ~ResizeNearestKernel()
+    {
+        if (module != nullptr) {
+            hipModuleUnload(module);
+        }
+    }
+};
+
+struct ThresholdKernel {
+    hipModule_t module = nullptr;
+    hipFunction_t function = nullptr;
+
+    ~ThresholdKernel()
+    {
+        if (module != nullptr) {
+            hipModuleUnload(module);
+        }
+    }
+};
+
+struct BlurKernel {
+    hipModule_t module = nullptr;
+    hipFunction_t function = nullptr;
+
+    ~BlurKernel()
     {
         if (module != nullptr) {
             hipModuleUnload(module);
@@ -90,6 +277,42 @@ CvtColorKernel& cvt_color_kernel() noexcept
 }
 
 std::mutex& cvt_color_kernel_mutex() noexcept
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+ResizeNearestKernel& resize_nearest_kernel() noexcept
+{
+    static ResizeNearestKernel kernel;
+    return kernel;
+}
+
+std::mutex& resize_nearest_kernel_mutex() noexcept
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+ThresholdKernel& threshold_kernel() noexcept
+{
+    static ThresholdKernel kernel;
+    return kernel;
+}
+
+std::mutex& threshold_kernel_mutex() noexcept
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+BlurKernel& blur_kernel() noexcept
+{
+    static BlurKernel kernel;
+    return kernel;
+}
+
+std::mutex& blur_kernel_mutex() noexcept
 {
     static std::mutex mutex;
     return mutex;
@@ -152,6 +375,204 @@ Status compile_cvt_color_kernel() noexcept
 
     hipFunction_t function = nullptr;
     if (hipModuleGetFunction(&function, module, "cvt_color_to_gray") != hipSuccess) {
+        hipModuleUnload(module);
+        return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
+    }
+
+    kernel.module = module;
+    kernel.function = function;
+    return Status::success();
+}
+
+Status compile_blur_kernel() noexcept
+{
+    auto& kernel = blur_kernel();
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    std::lock_guard<std::mutex> lock(blur_kernel_mutex());
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    int device = 0;
+    if (hipGetDevice(&device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDevice failed"};
+    }
+
+    hipDeviceProp_t props{};
+    if (hipGetDeviceProperties(&props, device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDeviceProperties failed"};
+    }
+
+    const std::string architecture = std::string("--gpu-architecture=") + props.gcnArchName;
+    const char* options[] = {architecture.c_str()};
+
+    hiprtcProgram program{};
+    if (hiprtcCreateProgram(&program, kBlurKernelSource, "blur_gray8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
+        return {StatusCode::runtime_error, "hiprtcCreateProgram failed"};
+    }
+
+    const auto compile_result = hiprtcCompileProgram(program, 1, options);
+    if (compile_result != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcCompileProgram failed"};
+    }
+
+    std::size_t code_size = 0;
+    if (hiprtcGetCodeSize(program, &code_size) != HIPRTC_SUCCESS || code_size == 0) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCodeSize failed"};
+    }
+
+    std::vector<char> code(code_size);
+    if (hiprtcGetCode(program, code.data()) != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCode failed"};
+    }
+
+    hiprtcDestroyProgram(&program);
+
+    hipModule_t module = nullptr;
+    if (hipModuleLoadData(&module, code.data()) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipModuleLoadData failed"};
+    }
+
+    hipFunction_t function = nullptr;
+    if (hipModuleGetFunction(&function, module, "blur_gray8") != hipSuccess) {
+        hipModuleUnload(module);
+        return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
+    }
+
+    kernel.module = module;
+    kernel.function = function;
+    return Status::success();
+}
+
+Status compile_threshold_kernel() noexcept
+{
+    auto& kernel = threshold_kernel();
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    std::lock_guard<std::mutex> lock(threshold_kernel_mutex());
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    int device = 0;
+    if (hipGetDevice(&device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDevice failed"};
+    }
+
+    hipDeviceProp_t props{};
+    if (hipGetDeviceProperties(&props, device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDeviceProperties failed"};
+    }
+
+    const std::string architecture = std::string("--gpu-architecture=") + props.gcnArchName;
+    const char* options[] = {architecture.c_str()};
+
+    hiprtcProgram program{};
+    if (hiprtcCreateProgram(&program, kThresholdKernelSource, "threshold_gray8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
+        return {StatusCode::runtime_error, "hiprtcCreateProgram failed"};
+    }
+
+    const auto compile_result = hiprtcCompileProgram(program, 1, options);
+    if (compile_result != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcCompileProgram failed"};
+    }
+
+    std::size_t code_size = 0;
+    if (hiprtcGetCodeSize(program, &code_size) != HIPRTC_SUCCESS || code_size == 0) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCodeSize failed"};
+    }
+
+    std::vector<char> code(code_size);
+    if (hiprtcGetCode(program, code.data()) != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCode failed"};
+    }
+
+    hiprtcDestroyProgram(&program);
+
+    hipModule_t module = nullptr;
+    if (hipModuleLoadData(&module, code.data()) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipModuleLoadData failed"};
+    }
+
+    hipFunction_t function = nullptr;
+    if (hipModuleGetFunction(&function, module, "threshold_gray8") != hipSuccess) {
+        hipModuleUnload(module);
+        return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
+    }
+
+    kernel.module = module;
+    kernel.function = function;
+    return Status::success();
+}
+
+Status compile_resize_nearest_kernel() noexcept
+{
+    auto& kernel = resize_nearest_kernel();
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    std::lock_guard<std::mutex> lock(resize_nearest_kernel_mutex());
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    int device = 0;
+    if (hipGetDevice(&device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDevice failed"};
+    }
+
+    hipDeviceProp_t props{};
+    if (hipGetDeviceProperties(&props, device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDeviceProperties failed"};
+    }
+
+    const std::string architecture = std::string("--gpu-architecture=") + props.gcnArchName;
+    const char* options[] = {architecture.c_str()};
+
+    hiprtcProgram program{};
+    if (hiprtcCreateProgram(&program, kResizeNearestKernelSource, "resize_nearest_u8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
+        return {StatusCode::runtime_error, "hiprtcCreateProgram failed"};
+    }
+
+    const auto compile_result = hiprtcCompileProgram(program, 1, options);
+    if (compile_result != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcCompileProgram failed"};
+    }
+
+    std::size_t code_size = 0;
+    if (hiprtcGetCodeSize(program, &code_size) != HIPRTC_SUCCESS || code_size == 0) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCodeSize failed"};
+    }
+
+    std::vector<char> code(code_size);
+    if (hiprtcGetCode(program, code.data()) != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCode failed"};
+    }
+
+    hiprtcDestroyProgram(&program);
+
+    hipModule_t module = nullptr;
+    if (hipModuleLoadData(&module, code.data()) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipModuleLoadData failed"};
+    }
+
+    hipFunction_t function = nullptr;
+    if (hipModuleGetFunction(&function, module, "resize_nearest_u8") != hipSuccess) {
         hipModuleUnload(module);
         return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
     }
@@ -225,6 +646,228 @@ Status cvtColor(const GpuMat& src, GpuMat& dst, ColorConversion code) noexcept
     } catch (...) {
         dst.release();
         return {StatusCode::runtime_error, "cvtColor failed"};
+    }
+#else
+    return {StatusCode::hip_not_enabled, "hipcv was built without HIP support"};
+#endif
+}
+
+Status resize(const GpuMat& src, GpuMat& dst, int width, int height, ResizeInterpolation interpolation) noexcept
+{
+    if (src.empty()) {
+        return {StatusCode::invalid_argument, "source GpuMat is empty"};
+    }
+
+    if (width <= 0 || height <= 0) {
+        return {StatusCode::invalid_argument, "destination size must be positive"};
+    }
+
+    if (interpolation != ResizeInterpolation::nearest) {
+        return {StatusCode::invalid_argument, "unsupported resize interpolation"};
+    }
+
+    const auto src_shape = src.shape();
+    if (!is_supported_resize_shape(src_shape)) {
+        return {StatusCode::invalid_argument, "unsupported resize image format"};
+    }
+
+    if (auto status = dst.allocate(resized_shape_from(src_shape, width, height)); !status.ok()) {
+        return status;
+    }
+
+#if HIPCV_HAS_HIP
+    try {
+        if (auto status = compile_resize_nearest_kernel(); !status.ok()) {
+            dst.release();
+            return status;
+        }
+
+        const auto dst_shape = dst.shape();
+        const auto* src_ptr = static_cast<const std::uint8_t*>(src.data());
+        auto* dst_ptr = static_cast<std::uint8_t*>(dst.data());
+        const int src_width = src_shape.width;
+        const int src_height = src_shape.height;
+        const int dst_width = dst_shape.width;
+        const int dst_height = dst_shape.height;
+        const int channels = src_shape.channels;
+        const auto src_step = static_cast<unsigned long long>(src_shape.step_bytes);
+        const auto dst_step = static_cast<unsigned long long>(dst_shape.step_bytes);
+
+        void* args[] = {
+            const_cast<std::uint8_t**>(&src_ptr),
+            &dst_ptr,
+            const_cast<int*>(&src_width),
+            const_cast<int*>(&src_height),
+            const_cast<int*>(&dst_width),
+            const_cast<int*>(&dst_height),
+            const_cast<int*>(&channels),
+            const_cast<unsigned long long*>(&src_step),
+            const_cast<unsigned long long*>(&dst_step),
+        };
+
+        constexpr unsigned int block_x = 16;
+        constexpr unsigned int block_y = 16;
+        const auto grid_x = static_cast<unsigned int>((dst_width + static_cast<int>(block_x) - 1) / static_cast<int>(block_x));
+        const auto grid_y = static_cast<unsigned int>((dst_height + static_cast<int>(block_y) - 1) / static_cast<int>(block_y));
+
+        if (hipModuleLaunchKernel(resize_nearest_kernel().function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
+            dst.release();
+            return {StatusCode::runtime_error, "hipModuleLaunchKernel failed"};
+        }
+
+        if (hipDeviceSynchronize() != hipSuccess) {
+            dst.release();
+            return {StatusCode::runtime_error, "hipDeviceSynchronize failed"};
+        }
+
+        return Status::success();
+    } catch (...) {
+        dst.release();
+        return {StatusCode::runtime_error, "resize failed"};
+    }
+#else
+    return {StatusCode::hip_not_enabled, "hipcv was built without HIP support"};
+#endif
+}
+
+Status threshold(const GpuMat& src, GpuMat& dst, std::uint8_t threshold_value, std::uint8_t max_value, ThresholdType type) noexcept
+{
+    if (src.empty()) {
+        return {StatusCode::invalid_argument, "source GpuMat is empty"};
+    }
+
+    if (type != ThresholdType::binary && type != ThresholdType::binary_inv) {
+        return {StatusCode::invalid_argument, "unsupported threshold type"};
+    }
+
+    const auto src_shape = src.shape();
+    if (!is_supported_threshold_shape(src_shape)) {
+        return {StatusCode::invalid_argument, "threshold currently supports gray8 only"};
+    }
+
+    if (auto status = dst.allocate(same_shape_as(src_shape)); !status.ok()) {
+        return status;
+    }
+
+#if HIPCV_HAS_HIP
+    try {
+        if (auto status = compile_threshold_kernel(); !status.ok()) {
+            dst.release();
+            return status;
+        }
+
+        const auto dst_shape = dst.shape();
+        const auto* src_ptr = static_cast<const std::uint8_t*>(src.data());
+        auto* dst_ptr = static_cast<std::uint8_t*>(dst.data());
+        const int width = src_shape.width;
+        const int height = src_shape.height;
+        const auto src_step = static_cast<unsigned long long>(src_shape.step_bytes);
+        const auto dst_step = static_cast<unsigned long long>(dst_shape.step_bytes);
+        const auto threshold_arg = static_cast<unsigned int>(threshold_value);
+        const auto max_arg = static_cast<unsigned int>(max_value);
+        const int inverse = type == ThresholdType::binary_inv ? 1 : 0;
+
+        void* args[] = {
+            const_cast<std::uint8_t**>(&src_ptr),
+            &dst_ptr,
+            const_cast<int*>(&width),
+            const_cast<int*>(&height),
+            const_cast<unsigned long long*>(&src_step),
+            const_cast<unsigned long long*>(&dst_step),
+            const_cast<unsigned int*>(&threshold_arg),
+            const_cast<unsigned int*>(&max_arg),
+            const_cast<int*>(&inverse),
+        };
+
+        constexpr unsigned int block_x = 16;
+        constexpr unsigned int block_y = 16;
+        const auto grid_x = static_cast<unsigned int>((width + static_cast<int>(block_x) - 1) / static_cast<int>(block_x));
+        const auto grid_y = static_cast<unsigned int>((height + static_cast<int>(block_y) - 1) / static_cast<int>(block_y));
+
+        if (hipModuleLaunchKernel(threshold_kernel().function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
+            dst.release();
+            return {StatusCode::runtime_error, "hipModuleLaunchKernel failed"};
+        }
+
+        if (hipDeviceSynchronize() != hipSuccess) {
+            dst.release();
+            return {StatusCode::runtime_error, "hipDeviceSynchronize failed"};
+        }
+
+        return Status::success();
+    } catch (...) {
+        dst.release();
+        return {StatusCode::runtime_error, "threshold failed"};
+    }
+#else
+    return {StatusCode::hip_not_enabled, "hipcv was built without HIP support"};
+#endif
+}
+
+Status blur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel_height) noexcept
+{
+    if (src.empty()) {
+        return {StatusCode::invalid_argument, "source GpuMat is empty"};
+    }
+
+    if (kernel_width <= 0 || kernel_height <= 0 || kernel_width % 2 == 0 || kernel_height % 2 == 0) {
+        return {StatusCode::invalid_argument, "blur kernel size must be positive and odd"};
+    }
+
+    const auto src_shape = src.shape();
+    if (!is_supported_blur_shape(src_shape)) {
+        return {StatusCode::invalid_argument, "blur currently supports gray8 only"};
+    }
+
+    if (auto status = dst.allocate(same_shape_as(src_shape)); !status.ok()) {
+        return status;
+    }
+
+#if HIPCV_HAS_HIP
+    try {
+        if (auto status = compile_blur_kernel(); !status.ok()) {
+            dst.release();
+            return status;
+        }
+
+        const auto dst_shape = dst.shape();
+        const auto* src_ptr = static_cast<const std::uint8_t*>(src.data());
+        auto* dst_ptr = static_cast<std::uint8_t*>(dst.data());
+        const int width = src_shape.width;
+        const int height = src_shape.height;
+        const auto src_step = static_cast<unsigned long long>(src_shape.step_bytes);
+        const auto dst_step = static_cast<unsigned long long>(dst_shape.step_bytes);
+
+        void* args[] = {
+            const_cast<std::uint8_t**>(&src_ptr),
+            &dst_ptr,
+            const_cast<int*>(&width),
+            const_cast<int*>(&height),
+            const_cast<unsigned long long*>(&src_step),
+            const_cast<unsigned long long*>(&dst_step),
+            &kernel_width,
+            &kernel_height,
+        };
+
+        constexpr unsigned int block_x = 16;
+        constexpr unsigned int block_y = 16;
+        const auto grid_x = static_cast<unsigned int>((width + static_cast<int>(block_x) - 1) / static_cast<int>(block_x));
+        const auto grid_y = static_cast<unsigned int>((height + static_cast<int>(block_y) - 1) / static_cast<int>(block_y));
+
+        if (hipModuleLaunchKernel(blur_kernel().function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
+            dst.release();
+            return {StatusCode::runtime_error, "hipModuleLaunchKernel failed"};
+        }
+
+        if (hipDeviceSynchronize() != hipSuccess) {
+            dst.release();
+            return {StatusCode::runtime_error, "hipDeviceSynchronize failed"};
+        }
+
+        return Status::success();
+    } catch (...) {
+        dst.release();
+        return {StatusCode::runtime_error, "blur failed"};
     }
 #else
     return {StatusCode::hip_not_enabled, "hipcv was built without HIP support"};

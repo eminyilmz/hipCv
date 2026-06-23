@@ -181,3 +181,139 @@ The no-HIP preset was also validated after adding `cvtColor`:
 ```text
 100% tests passed, 0 tests failed out of 4
 ```
+
+## 2026-06-23: Nearest-Neighbor Resize Kernel
+
+### Feature
+
+- Added `hipcv::resize`.
+- Added `hipcv::ResizeInterpolation::nearest`.
+- Supported initial formats:
+  - `gray8`
+  - `rgb8`
+  - `bgr8`
+  - `rgba8`
+  - `bgra8`
+- The kernel is compiled with HIPRTC at runtime for the active GPU
+  architecture.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_resize.exe
+```
+
+Result:
+
+```text
+1/5 Test #1: hipcv_windows_smoke .............. Passed
+2/5 Test #2: hipcv_test_status ................ Passed
+3/5 Test #3: hipcv_test_gpu_mat_no_hip ........ Passed
+4/5 Test #4: hipcv_test_cvt_color ............. Passed
+5/5 Test #5: hipcv_test_resize ................ Passed
+100% tests passed, 0 tests failed out of 5
+resize nearest 3x2 -> 6x4:
+1 1 2 2 3 3
+1 1 2 2 3 3
+4 4 5 5 6 6
+4 4 5 5 6 6
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding `resize`:
+
+```text
+100% tests passed, 0 tests failed out of 5
+```
+
+## 2026-06-23: Binary Threshold Kernel
+
+### Feature
+
+- Added `hipcv::threshold`.
+- Added `hipcv::ThresholdType::binary`.
+- Added `hipcv::ThresholdType::binary_inv`.
+- Initial support is intentionally limited to `gray8`.
+- The kernel is compiled with HIPRTC at runtime for the active GPU
+  architecture.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_threshold.exe
+```
+
+Result:
+
+```text
+1/6 Test #1: hipcv_windows_smoke .............. Passed
+2/6 Test #2: hipcv_test_status ................ Passed
+3/6 Test #3: hipcv_test_gpu_mat_no_hip ........ Passed
+4/6 Test #4: hipcv_test_cvt_color ............. Passed
+5/6 Test #5: hipcv_test_resize ................ Passed
+6/6 Test #6: hipcv_test_threshold ............. Passed
+100% tests passed, 0 tests failed out of 6
+threshold binary:
+0 0 0 255
+255 255 255 255
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding `threshold`:
+
+```text
+100% tests passed, 0 tests failed out of 6
+```
+
+## 2026-06-23: Box Blur Kernel
+
+### Feature
+
+- Added `hipcv::blur`.
+- Initial support is intentionally limited to `gray8`.
+- Kernel sizes must be positive and odd.
+- Border handling uses clamp-to-edge.
+- The kernel is compiled with HIPRTC at runtime for the active GPU
+  architecture.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_blur.exe
+```
+
+Result:
+
+```text
+1/7 Test #1: hipcv_windows_smoke .............. Passed
+2/7 Test #2: hipcv_test_status ................ Passed
+3/7 Test #3: hipcv_test_gpu_mat_no_hip ........ Passed
+4/7 Test #4: hipcv_test_cvt_color ............. Passed
+5/7 Test #5: hipcv_test_resize ................ Passed
+6/7 Test #6: hipcv_test_threshold ............. Passed
+7/7 Test #7: hipcv_test_blur .................. Passed
+100% tests passed, 0 tests failed out of 7
+blur 3x3:
+27 33 43 50
+53 60 70 77
+80 87 97 103
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding `blur`:
+
+```text
+100% tests passed, 0 tests failed out of 7
+```
