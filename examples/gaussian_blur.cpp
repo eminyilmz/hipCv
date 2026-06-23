@@ -58,5 +58,48 @@ int main()
         std::cout << '\n';
     }
 
+    const std::vector<std::uint8_t> bgr = {
+        10, 20, 30, 40, 50, 60, 70, 80, 90,
+        11, 21, 31, 41, 51, 61, 71, 81, 91,
+        12, 22, 32, 42, 52, 62, 72, 82, 92,
+    };
+
+    const hipcv::ImageShape bgr_shape{
+        3,
+        3,
+        3,
+        0,
+        hipcv::PixelFormat::bgr8,
+    };
+
+    hipcv::GpuMat bgr_src;
+    if (auto status = bgr_src.upload(bgr.data(), bgr_shape); !status.ok()) {
+        std::cerr << "BGR upload failed: " << status.message() << '\n';
+        return 1;
+    }
+
+    hipcv::GpuMat bgr_blurred;
+    if (auto status = hipcv::gaussianBlur(bgr_src, bgr_blurred, 3, 3); !status.ok()) {
+        std::cerr << "BGR gaussianBlur failed: " << status.message() << '\n';
+        return 1;
+    }
+
+    std::vector<std::uint8_t> bgr_output(bgr.size());
+    if (auto status = bgr_blurred.download(bgr_output.data(), bgr_output.size()); !status.ok()) {
+        std::cerr << "BGR download failed: " << status.message() << '\n';
+        return 1;
+    }
+
+    std::cout << "BGR gaussianBlur 3x3:\n";
+    for (int y = 0; y < bgr_shape.height; ++y) {
+        for (int x = 0; x < bgr_shape.width; ++x) {
+            const auto index = static_cast<std::size_t>((y * bgr_shape.width + x) * bgr_shape.channels);
+            std::cout << '(' << static_cast<int>(bgr_output[index])
+                      << ',' << static_cast<int>(bgr_output[index + 1])
+                      << ',' << static_cast<int>(bgr_output[index + 2]) << ") ";
+        }
+        std::cout << '\n';
+    }
+
     return 0;
 }

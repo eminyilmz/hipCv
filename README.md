@@ -111,7 +111,7 @@ Implemented or scaffolded:
 - `resize` with nearest-neighbor and bilinear interpolation.
 - `threshold` with binary and binary-inverse modes for `gray8`.
 - `blur` with box filtering for `gray8`, `rgb8`, `bgr8`, `rgba8`, and `bgra8`.
-- `gaussianBlur` with 3x3 and 5x5 kernels for `gray8`.
+- `gaussianBlur` with 3x3 and 5x5 kernels for `gray8`, `rgb8`, `bgr8`, `rgba8`, and `bgra8`.
 - First HIPRTC-backed image kernel.
 - Windows smoke example.
 - Minimal `cvtColor` example.
@@ -130,7 +130,7 @@ Implemented or scaffolded:
 Next technical target:
 
 ```text
-multi-channel gaussianBlur support
+HIPRTC compile helper cleanup
 ```
 
 ## Quickstart

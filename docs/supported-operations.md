@@ -8,7 +8,7 @@ instead of doing surprising work.
 
 | Format | Channels | Notes |
 | --- | ---: | --- |
-| `gray8` | 1 | Main format for threshold and Gaussian blur operations |
+| `gray8` | 1 | Main format for threshold operations |
 | `rgb8` | 3 | Supported by resize, `RGB2GRAY`, and `RGB2BGR` |
 | `bgr8` | 3 | Supported by resize, `BGR2GRAY`, and `BGR2RGB` |
 | `rgba8` | 4 | Supported by resize |
@@ -26,7 +26,7 @@ instead of doing surprising work.
 | `resize` | `gray8`, `rgb8`, `bgr8`, `rgba8`, `bgra8` | nearest neighbor, bilinear | Same format, requested size | N/A |
 | `threshold` | `gray8` | binary, binary inverse | `gray8` | N/A |
 | `blur` | `gray8`, `rgb8`, `bgr8`, `rgba8`, `bgra8` | Positive odd kernel width and height | Same format | Clamp-to-edge |
-| `gaussianBlur` | `gray8` | 3x3 and 5x5 square kernels | `gray8` | Clamp-to-edge |
+| `gaussianBlur` | `gray8`, `rgb8`, `bgr8`, `rgba8`, `bgra8` | 3x3 and 5x5 square kernels | Same format | Clamp-to-edge |
 
 ## Current Unsupported Modes
 
@@ -36,7 +36,7 @@ instead of doing surprising work.
 | `resize` | Area, cubic, lanczos |
 | `threshold` | Trunc, to-zero, adaptive threshold |
 | `blur` | Explicit anchor, border modes |
-| `gaussianBlur` | Multi-channel images, arbitrary sigma, broader kernel sizes, explicit border modes |
+| `gaussianBlur` | Arbitrary sigma, broader kernel sizes, explicit border modes |
 | Memory | Pinned host memory, async streams, user-owned device pointers |
 
 ## Error Behavior

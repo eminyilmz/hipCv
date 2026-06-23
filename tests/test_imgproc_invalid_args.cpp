@@ -155,9 +155,9 @@ void check_hip_validation_paths()
         "gaussianBlur should reject unsupported kernel sizes");
 
     expect_code(
-        hipcv::gaussianBlur(bgr, dst, 3, 3),
+        hipcv::gaussianBlur(unknown, dst, 3, 3),
         hipcv::StatusCode::invalid_argument,
-        "gaussianBlur should reject non-gray source");
+        "gaussianBlur should reject unsupported image format");
 }
 
 } // namespace

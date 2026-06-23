@@ -120,7 +120,20 @@ bool is_supported_blur_shape(const ImageShape& shape) noexcept
 
 bool is_supported_gaussian_blur_shape(const ImageShape& shape) noexcept
 {
-    return shape.format == PixelFormat::gray8 && shape.channels == 1;
+    switch (shape.format) {
+    case PixelFormat::gray8:
+        return shape.channels == 1;
+    case PixelFormat::rgb8:
+    case PixelFormat::bgr8:
+        return shape.channels == 3;
+    case PixelFormat::rgba8:
+    case PixelFormat::bgra8:
+        return shape.channels == 4;
+    case PixelFormat::unknown:
+        return false;
+    }
+
+    return false;
 }
 
 ImageShape same_shape_as(const ImageShape& src) noexcept
@@ -373,13 +386,14 @@ __device__ int gaussian_weight(int offset, int kernel_size)
     return absolute_offset == 1 ? 4 : 1;
 }
 
-extern "C" __global__ void gaussian_blur_gray8(
+extern "C" __global__ void gaussian_blur_u8(
     const unsigned char* src,
     unsigned char* dst,
     int width,
     int height,
     unsigned long long src_step,
     unsigned long long dst_step,
+    int channels,
     int kernel_size)
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -390,33 +404,38 @@ extern "C" __global__ void gaussian_blur_gray8(
     }
 
     const int radius = kernel_size / 2;
-    unsigned int sum = 0;
+    unsigned char* dst_pixel = dst + (static_cast<unsigned long long>(y) * dst_step) + (x * channels);
 
-    for (int ky = -radius; ky <= radius; ++ky) {
-        int src_y = y + ky;
-        if (src_y < 0) {
-            src_y = 0;
-        } else if (src_y >= height) {
-            src_y = height - 1;
-        }
+    for (int channel = 0; channel < channels; ++channel) {
+        unsigned int sum = 0;
 
-        const unsigned int weight_y = static_cast<unsigned int>(gaussian_weight(ky, kernel_size));
-        for (int kx = -radius; kx <= radius; ++kx) {
-            int src_x = x + kx;
-            if (src_x < 0) {
-                src_x = 0;
-            } else if (src_x >= width) {
-                src_x = width - 1;
+        for (int ky = -radius; ky <= radius; ++ky) {
+            int src_y = y + ky;
+            if (src_y < 0) {
+                src_y = 0;
+            } else if (src_y >= height) {
+                src_y = height - 1;
             }
 
-            const unsigned int weight_x = static_cast<unsigned int>(gaussian_weight(kx, kernel_size));
-            const unsigned int weight = weight_x * weight_y;
-            sum += weight * static_cast<unsigned int>(src[(static_cast<unsigned long long>(src_y) * src_step) + src_x]);
-        }
-    }
+            const unsigned int weight_y = static_cast<unsigned int>(gaussian_weight(ky, kernel_size));
+            for (int kx = -radius; kx <= radius; ++kx) {
+                int src_x = x + kx;
+                if (src_x < 0) {
+                    src_x = 0;
+                } else if (src_x >= width) {
+                    src_x = width - 1;
+                }
 
-    const unsigned int weight_sum = kernel_size == 3 ? 16u : 256u;
-    dst[(static_cast<unsigned long long>(y) * dst_step) + x] = static_cast<unsigned char>((sum + (weight_sum / 2u)) / weight_sum);
+                const unsigned int weight_x = static_cast<unsigned int>(gaussian_weight(kx, kernel_size));
+                const unsigned int weight = weight_x * weight_y;
+                const unsigned char* src_pixel = src + (static_cast<unsigned long long>(src_y) * src_step) + (src_x * channels);
+                sum += weight * static_cast<unsigned int>(src_pixel[channel]);
+            }
+        }
+
+        const unsigned int weight_sum = kernel_size == 3 ? 16u : 256u;
+        dst_pixel[channel] = static_cast<unsigned char>((sum + (weight_sum / 2u)) / weight_sum);
+    }
 }
 )";
 
@@ -730,7 +749,7 @@ Status compile_gaussian_blur_kernel() noexcept
     const char* options[] = {architecture.c_str()};
 
     hiprtcProgram program{};
-    if (hiprtcCreateProgram(&program, kGaussianBlurKernelSource, "gaussian_blur_gray8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
+    if (hiprtcCreateProgram(&program, kGaussianBlurKernelSource, "gaussian_blur_u8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
         return {StatusCode::runtime_error, "hiprtcCreateProgram failed"};
     }
 
@@ -760,7 +779,7 @@ Status compile_gaussian_blur_kernel() noexcept
     }
 
     hipFunction_t function = nullptr;
-    if (hipModuleGetFunction(&function, module, "gaussian_blur_gray8") != hipSuccess) {
+    if (hipModuleGetFunction(&function, module, "gaussian_blur_u8") != hipSuccess) {
         hipModuleUnload(module);
         return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
     }
@@ -1300,7 +1319,7 @@ Status gaussianBlur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel
 
     const auto src_shape = src.shape();
     if (!is_supported_gaussian_blur_shape(src_shape)) {
-        return {StatusCode::invalid_argument, "gaussianBlur currently supports gray8 only"};
+        return {StatusCode::invalid_argument, "unsupported gaussianBlur image format"};
     }
 
     if (auto status = dst.allocate(same_shape_as(src_shape)); !status.ok()) {
@@ -1319,6 +1338,7 @@ Status gaussianBlur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel
         auto* dst_ptr = static_cast<std::uint8_t*>(dst.data());
         const int width = src_shape.width;
         const int height = src_shape.height;
+        const int channels = src_shape.channels;
         const int kernel_size = kernel_width;
         const auto src_step = static_cast<unsigned long long>(src_shape.step_bytes);
         const auto dst_step = static_cast<unsigned long long>(dst_shape.step_bytes);
@@ -1330,6 +1350,7 @@ Status gaussianBlur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel
             const_cast<int*>(&height),
             const_cast<unsigned long long*>(&src_step),
             const_cast<unsigned long long*>(&dst_step),
+            const_cast<int*>(&channels),
             const_cast<int*>(&kernel_size),
         };
 

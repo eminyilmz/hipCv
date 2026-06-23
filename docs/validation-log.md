@@ -512,6 +512,68 @@ Result:
 100% tests passed, 0 tests failed out of 10
 ```
 
+## 2026-06-23: Multi-Channel Gaussian Blur
+
+### Feature
+
+- Extended `hipcv::gaussianBlur` beyond `gray8`.
+- Supported formats now include:
+  - `gray8`
+  - `rgb8`
+  - `bgr8`
+  - `rgba8`
+  - `bgra8`
+- The fixed 3x3 and 5x5 Gaussian filters are applied independently per
+  channel.
+- Expanded `hipcv_test_gaussian_blur` with BGR reference coverage.
+- Updated invalid-argument coverage to reject unsupported image formats instead
+  of rejecting BGR.
+- Updated the `hipcv_gaussian_blur` example to print gray and BGR output.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_gaussian_blur.exe
+```
+
+Result:
+
+```text
+ 1/10 Test  #1: hipcv_windows_smoke ............... Passed
+ 2/10 Test  #2: hipcv_test_status ................. Passed
+ 3/10 Test  #3: hipcv_test_gpu_mat_no_hip ......... Passed
+ 4/10 Test  #4: hipcv_test_gpu_mat_roundtrip ...... Passed
+ 5/10 Test  #5: hipcv_test_cvt_color .............. Passed
+ 6/10 Test  #6: hipcv_test_resize ................. Passed
+ 7/10 Test  #7: hipcv_test_threshold .............. Passed
+ 8/10 Test  #8: hipcv_test_blur ................... Passed
+ 9/10 Test  #9: hipcv_test_gaussian_blur .......... Passed
+10/10 Test #10: hipcv_test_imgproc_invalid_args ... Passed
+100% tests passed, 0 tests failed out of 10
+gaussianBlur 3x3:
+25 33 43 53 60
+63 70 80 90 98
+113 120 130 140 148
+150 158 168 178 185
+BGR gaussianBlur 3x3:
+(18,28,38) (40,50,60) (63,73,83)
+(19,29,39) (41,51,61) (64,74,84)
+(19,29,39) (42,52,62) (64,74,84)
+```
+
+### No-HIP And CI Checks
+
+The Visual Studio 2026 no-HIP preset and NMake CI preset were also validated
+after adding multi-channel Gaussian blur:
+
+```text
+windows-vs2026-no-hip: 100% tests passed, 0 tests failed out of 10
+windows-ci-no-hip: 100% tests passed, 0 tests failed out of 10
+```
+
 ## 2026-06-23: Multi-Channel Box Blur
 
 ### Feature
