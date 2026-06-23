@@ -148,21 +148,29 @@ pipelines.
 
 ### Function Order
 
-1. `cvtColor`
+1. `cvtColor` initial pass
    - `BGR2GRAY`
    - `RGB2GRAY`
+2. `resize` initial pass
+   - nearest neighbor
+3. `threshold` initial pass
+   - binary
+   - binary inverse
+4. `blur` initial pass
+   - box blur for `gray8`
+5. `gaussianBlur` initial pass
+   - 3x3 and 5x5 fixed kernels for `gray8`
+
+### Follow-Up Operation Modes
+
+1. `cvtColor`
    - `BGR2RGB`
    - `RGB2BGR`
 2. `resize`
-   - nearest neighbor
    - bilinear
-3. `threshold`
-   - binary
-   - binary inverse
-4. `blur`
-   - box blur
-5. `gaussianBlur`
-   - fixed odd kernel sizes first, such as 3x3 and 5x5
+3. `blur` and `gaussianBlur`
+   - multi-channel variants
+   - broader kernel sizes where useful
 
 ### Tasks
 
@@ -182,7 +190,7 @@ pipelines.
 - Example pipeline:
 
 ```text
-upload -> resize -> cvtColor -> threshold -> download
+upload -> resize -> cvtColor -> threshold/blur -> download
 ```
 
 ### Exit Criteria

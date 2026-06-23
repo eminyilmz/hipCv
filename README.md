@@ -24,7 +24,7 @@ The project is intentionally focused: prove a small, reliable, GPU-resident
 pipeline on Windows first, then expand the API.
 
 ```text
-host image -> upload -> cvtColor -> resize -> download
+host image -> upload -> cvtColor -> resize -> threshold/blur -> download
 ```
 
 ## Why hipcv?
@@ -110,17 +110,19 @@ Implemented or scaffolded:
 - `resize` with nearest-neighbor interpolation.
 - `threshold` with binary and binary-inverse modes for `gray8`.
 - `blur` with box filtering for `gray8`.
+- `gaussianBlur` with 3x3 and 5x5 kernels for `gray8`.
 - First HIPRTC-backed image kernel.
 - Windows smoke example.
 - Minimal `cvtColor` example.
 - Minimal `resize` example.
 - Minimal `threshold` example.
 - Minimal `blur` example.
+- Minimal `gaussianBlur` example.
 
 Next technical target:
 
 ```text
-gaussianBlur
+chained preprocessing sample + basic benchmark harness
 ```
 
 ## Quickstart

@@ -33,7 +33,7 @@
   <rect x="1076" y="118" width="96" height="96" rx="14" fill="#20242D" stroke="#596173"/>
   <path d="M980 166H1028M1004 142V190" stroke="#38BDF8" stroke-width="8" stroke-linecap="round"/>
   <path d="M1098 148H1150M1098 166H1150M1098 184H1132" stroke="#22C55E" stroke-width="8" stroke-linecap="round"/>
-  <text x="963" y="252" fill="#D7DBE3" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="600">cvtColor · resize · blur</text>
+  <text x="942" y="252" fill="#D7DBE3" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">cvtColor · resize · blur · gaussianBlur</text>
 
   <text x="74" y="42" fill="#F9FAFB" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="800">hipcv</text>
   <text x="162" y="42" fill="#A8B0BF" font-family="Segoe UI, Arial, sans-serif" font-size="20">OpenCV-like image processing for AMD GPUs</text>

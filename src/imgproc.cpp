@@ -79,6 +79,11 @@ bool is_supported_blur_shape(const ImageShape& shape) noexcept
     return shape.format == PixelFormat::gray8 && shape.channels == 1;
 }
 
+bool is_supported_gaussian_blur_shape(const ImageShape& shape) noexcept
+{
+    return shape.format == PixelFormat::gray8 && shape.channels == 1;
+}
+
 ImageShape same_shape_as(const ImageShape& src) noexcept
 {
     return {
@@ -222,6 +227,67 @@ extern "C" __global__ void blur_gray8(
 }
 )";
 
+constexpr const char* kGaussianBlurKernelSource = R"(
+__device__ int gaussian_weight(int offset, int kernel_size)
+{
+    const int absolute_offset = offset < 0 ? -offset : offset;
+    if (kernel_size == 3) {
+        return absolute_offset == 0 ? 2 : 1;
+    }
+
+    if (absolute_offset == 0) {
+        return 6;
+    }
+    return absolute_offset == 1 ? 4 : 1;
+}
+
+extern "C" __global__ void gaussian_blur_gray8(
+    const unsigned char* src,
+    unsigned char* dst,
+    int width,
+    int height,
+    unsigned long long src_step,
+    unsigned long long dst_step,
+    int kernel_size)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= width || y >= height) {
+        return;
+    }
+
+    const int radius = kernel_size / 2;
+    unsigned int sum = 0;
+
+    for (int ky = -radius; ky <= radius; ++ky) {
+        int src_y = y + ky;
+        if (src_y < 0) {
+            src_y = 0;
+        } else if (src_y >= height) {
+            src_y = height - 1;
+        }
+
+        const unsigned int weight_y = static_cast<unsigned int>(gaussian_weight(ky, kernel_size));
+        for (int kx = -radius; kx <= radius; ++kx) {
+            int src_x = x + kx;
+            if (src_x < 0) {
+                src_x = 0;
+            } else if (src_x >= width) {
+                src_x = width - 1;
+            }
+
+            const unsigned int weight_x = static_cast<unsigned int>(gaussian_weight(kx, kernel_size));
+            const unsigned int weight = weight_x * weight_y;
+            sum += weight * static_cast<unsigned int>(src[(static_cast<unsigned long long>(src_y) * src_step) + src_x]);
+        }
+    }
+
+    const unsigned int weight_sum = kernel_size == 3 ? 16u : 256u;
+    dst[(static_cast<unsigned long long>(y) * dst_step) + x] = static_cast<unsigned char>((sum + (weight_sum / 2u)) / weight_sum);
+}
+)";
+
 struct CvtColorKernel {
     hipModule_t module = nullptr;
     hipFunction_t function = nullptr;
@@ -263,6 +329,18 @@ struct BlurKernel {
     hipFunction_t function = nullptr;
 
     ~BlurKernel()
+    {
+        if (module != nullptr) {
+            hipModuleUnload(module);
+        }
+    }
+};
+
+struct GaussianBlurKernel {
+    hipModule_t module = nullptr;
+    hipFunction_t function = nullptr;
+
+    ~GaussianBlurKernel()
     {
         if (module != nullptr) {
             hipModuleUnload(module);
@@ -313,6 +391,18 @@ BlurKernel& blur_kernel() noexcept
 }
 
 std::mutex& blur_kernel_mutex() noexcept
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+GaussianBlurKernel& gaussian_blur_kernel() noexcept
+{
+    static GaussianBlurKernel kernel;
+    return kernel;
+}
+
+std::mutex& gaussian_blur_kernel_mutex() noexcept
 {
     static std::mutex mutex;
     return mutex;
@@ -441,6 +531,72 @@ Status compile_blur_kernel() noexcept
 
     hipFunction_t function = nullptr;
     if (hipModuleGetFunction(&function, module, "blur_gray8") != hipSuccess) {
+        hipModuleUnload(module);
+        return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
+    }
+
+    kernel.module = module;
+    kernel.function = function;
+    return Status::success();
+}
+
+Status compile_gaussian_blur_kernel() noexcept
+{
+    auto& kernel = gaussian_blur_kernel();
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    std::lock_guard<std::mutex> lock(gaussian_blur_kernel_mutex());
+    if (kernel.function != nullptr) {
+        return Status::success();
+    }
+
+    int device = 0;
+    if (hipGetDevice(&device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDevice failed"};
+    }
+
+    hipDeviceProp_t props{};
+    if (hipGetDeviceProperties(&props, device) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipGetDeviceProperties failed"};
+    }
+
+    const std::string architecture = std::string("--gpu-architecture=") + props.gcnArchName;
+    const char* options[] = {architecture.c_str()};
+
+    hiprtcProgram program{};
+    if (hiprtcCreateProgram(&program, kGaussianBlurKernelSource, "gaussian_blur_gray8.hip", 0, nullptr, nullptr) != HIPRTC_SUCCESS) {
+        return {StatusCode::runtime_error, "hiprtcCreateProgram failed"};
+    }
+
+    const auto compile_result = hiprtcCompileProgram(program, 1, options);
+    if (compile_result != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcCompileProgram failed"};
+    }
+
+    std::size_t code_size = 0;
+    if (hiprtcGetCodeSize(program, &code_size) != HIPRTC_SUCCESS || code_size == 0) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCodeSize failed"};
+    }
+
+    std::vector<char> code(code_size);
+    if (hiprtcGetCode(program, code.data()) != HIPRTC_SUCCESS) {
+        hiprtcDestroyProgram(&program);
+        return {StatusCode::runtime_error, "hiprtcGetCode failed"};
+    }
+
+    hiprtcDestroyProgram(&program);
+
+    hipModule_t module = nullptr;
+    if (hipModuleLoadData(&module, code.data()) != hipSuccess) {
+        return {StatusCode::runtime_error, "hipModuleLoadData failed"};
+    }
+
+    hipFunction_t function = nullptr;
+    if (hipModuleGetFunction(&function, module, "gaussian_blur_gray8") != hipSuccess) {
         hipModuleUnload(module);
         return {StatusCode::runtime_error, "hipModuleGetFunction failed"};
     }
@@ -868,6 +1024,80 @@ Status blur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel_height)
     } catch (...) {
         dst.release();
         return {StatusCode::runtime_error, "blur failed"};
+    }
+#else
+    return {StatusCode::hip_not_enabled, "hipcv was built without HIP support"};
+#endif
+}
+
+Status gaussianBlur(const GpuMat& src, GpuMat& dst, int kernel_width, int kernel_height) noexcept
+{
+    if (src.empty()) {
+        return {StatusCode::invalid_argument, "source GpuMat is empty"};
+    }
+
+    if (kernel_width != kernel_height) {
+        return {StatusCode::invalid_argument, "gaussianBlur currently requires a square kernel"};
+    }
+
+    if (kernel_width != 3 && kernel_width != 5) {
+        return {StatusCode::invalid_argument, "gaussianBlur currently supports 3x3 and 5x5 kernels"};
+    }
+
+    const auto src_shape = src.shape();
+    if (!is_supported_gaussian_blur_shape(src_shape)) {
+        return {StatusCode::invalid_argument, "gaussianBlur currently supports gray8 only"};
+    }
+
+    if (auto status = dst.allocate(same_shape_as(src_shape)); !status.ok()) {
+        return status;
+    }
+
+#if HIPCV_HAS_HIP
+    try {
+        if (auto status = compile_gaussian_blur_kernel(); !status.ok()) {
+            dst.release();
+            return status;
+        }
+
+        const auto dst_shape = dst.shape();
+        const auto* src_ptr = static_cast<const std::uint8_t*>(src.data());
+        auto* dst_ptr = static_cast<std::uint8_t*>(dst.data());
+        const int width = src_shape.width;
+        const int height = src_shape.height;
+        const int kernel_size = kernel_width;
+        const auto src_step = static_cast<unsigned long long>(src_shape.step_bytes);
+        const auto dst_step = static_cast<unsigned long long>(dst_shape.step_bytes);
+
+        void* args[] = {
+            const_cast<std::uint8_t**>(&src_ptr),
+            &dst_ptr,
+            const_cast<int*>(&width),
+            const_cast<int*>(&height),
+            const_cast<unsigned long long*>(&src_step),
+            const_cast<unsigned long long*>(&dst_step),
+            const_cast<int*>(&kernel_size),
+        };
+
+        constexpr unsigned int block_x = 16;
+        constexpr unsigned int block_y = 16;
+        const auto grid_x = static_cast<unsigned int>((width + static_cast<int>(block_x) - 1) / static_cast<int>(block_x));
+        const auto grid_y = static_cast<unsigned int>((height + static_cast<int>(block_y) - 1) / static_cast<int>(block_y));
+
+        if (hipModuleLaunchKernel(gaussian_blur_kernel().function, grid_x, grid_y, 1, block_x, block_y, 1, 0, nullptr, args, nullptr) != hipSuccess) {
+            dst.release();
+            return {StatusCode::runtime_error, "hipModuleLaunchKernel failed"};
+        }
+
+        if (hipDeviceSynchronize() != hipSuccess) {
+            dst.release();
+            return {StatusCode::runtime_error, "hipDeviceSynchronize failed"};
+        }
+
+        return Status::success();
+    } catch (...) {
+        dst.release();
+        return {StatusCode::runtime_error, "gaussianBlur failed"};
     }
 #else
     return {StatusCode::hip_not_enabled, "hipcv was built without HIP support"};

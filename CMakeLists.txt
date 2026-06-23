@@ -68,6 +68,9 @@ if(HIPCV_BUILD_EXAMPLES)
 
     add_executable(hipcv_blur examples/blur.cpp)
     target_link_libraries(hipcv_blur PRIVATE hipcv)
+
+    add_executable(hipcv_gaussian_blur examples/gaussian_blur.cpp)
+    target_link_libraries(hipcv_gaussian_blur PRIVATE hipcv)
 endif()
 
 if(HIPCV_BUILD_TESTS)
@@ -89,4 +92,5 @@ if(HIPCV_BUILD_TESTS)
     hipcv_add_test(hipcv_test_resize tests/test_resize.cpp)
     hipcv_add_test(hipcv_test_threshold tests/test_threshold.cpp)
     hipcv_add_test(hipcv_test_blur tests/test_blur.cpp)
+    hipcv_add_test(hipcv_test_gaussian_blur tests/test_gaussian_blur.cpp)
 endif()

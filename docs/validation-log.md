@@ -317,3 +317,50 @@ The no-HIP preset was also validated after adding `blur`:
 ```text
 100% tests passed, 0 tests failed out of 7
 ```
+
+## 2026-06-23: Gaussian Blur Kernel
+
+### Feature
+
+- Added `hipcv::gaussianBlur`.
+- Initial support is intentionally limited to `gray8`.
+- Supported kernel sizes are 3x3 and 5x5.
+- Border handling uses clamp-to-edge.
+- The kernel uses fixed binomial Gaussian weights and HIPRTC runtime
+  compilation for the active GPU architecture.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+build\windows-vs2026\Release\hipcv_gaussian_blur.exe
+```
+
+Result:
+
+```text
+1/8 Test #1: hipcv_windows_smoke .............. Passed
+2/8 Test #2: hipcv_test_status ................ Passed
+3/8 Test #3: hipcv_test_gpu_mat_no_hip ........ Passed
+4/8 Test #4: hipcv_test_cvt_color ............. Passed
+5/8 Test #5: hipcv_test_resize ................ Passed
+6/8 Test #6: hipcv_test_threshold ............. Passed
+7/8 Test #7: hipcv_test_blur .................. Passed
+8/8 Test #8: hipcv_test_gaussian_blur ......... Passed
+100% tests passed, 0 tests failed out of 8
+gaussianBlur 3x3:
+25 33 43 53 60
+63 70 80 90 98
+113 120 130 140 148
+150 158 168 178 185
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding `gaussianBlur`:
+
+```text
+100% tests passed, 0 tests failed out of 8
+```
