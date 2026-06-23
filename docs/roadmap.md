@@ -181,6 +181,7 @@ pipelines.
 - Add CPU reference implementations for each operation.
 - Add tests for invalid formats and unsupported conversions.
 - Add examples for single operations and chained operations.
+- Document supported formats and operation modes.
 
 ### Deliverables
 
@@ -228,6 +229,7 @@ tests/test_resize.cpp
 tests/test_threshold.cpp
 tests/test_blur.cpp
 tests/test_gaussian_blur.cpp
+tests/test_imgproc_invalid_args.cpp
 ```
 
 ### Exit Criteria

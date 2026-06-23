@@ -435,3 +435,45 @@ executables:
 ```text
 100% tests passed, 0 tests failed out of 8
 ```
+
+## 2026-06-23: Supported Operation Matrix And Invalid Argument Tests
+
+### Feature
+
+- Added `docs/supported-operations.md`.
+- Added `hipcv_test_imgproc_invalid_args`.
+- Documented the MVP-supported image formats, operation modes, and unsupported
+  modes.
+- Added validation coverage for empty sources, unsupported formats,
+  unsupported interpolation/type values, and unsupported blur kernel modes.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+```
+
+Result:
+
+```text
+1/9 Test #1: hipcv_windows_smoke ............... Passed
+2/9 Test #2: hipcv_test_status ................. Passed
+3/9 Test #3: hipcv_test_gpu_mat_no_hip ......... Passed
+4/9 Test #4: hipcv_test_cvt_color .............. Passed
+5/9 Test #5: hipcv_test_resize ................. Passed
+6/9 Test #6: hipcv_test_threshold .............. Passed
+7/9 Test #7: hipcv_test_blur ................... Passed
+8/9 Test #8: hipcv_test_gaussian_blur .......... Passed
+9/9 Test #9: hipcv_test_imgproc_invalid_args ... Passed
+100% tests passed, 0 tests failed out of 9
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding the invalid argument test:
+
+```text
+100% tests passed, 0 tests failed out of 9
+```

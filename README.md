@@ -120,11 +120,12 @@ Implemented or scaffolded:
 - Minimal `gaussianBlur` example.
 - Chained preprocessing pipeline example.
 - Basic preprocessing benchmark executable.
+- Supported operation matrix.
 
 Next technical target:
 
 ```text
-supported operation matrix + invalid argument tests
+GpuMat roundtrip/copy GPU tests + API design notes
 ```
 
 ## Quickstart
@@ -217,6 +218,7 @@ exit criteria.
 ## Documentation
 
 - [Roadmap](docs/roadmap.md)
+- [Supported operations](docs/supported-operations.md)
 - [Windows development notes](docs/windows-development.md)
 - [Market positioning](docs/market-positioning.md)
 - [Validation log](docs/validation-log.md)
