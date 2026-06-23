@@ -97,6 +97,7 @@ if(HIPCV_BUILD_TESTS)
 
     hipcv_add_test(hipcv_test_status tests/test_status.cpp)
     hipcv_add_test(hipcv_test_gpu_mat_no_hip tests/test_gpu_mat_no_hip.cpp)
+    hipcv_add_test(hipcv_test_gpu_mat_roundtrip tests/test_gpu_mat_roundtrip.cpp)
     hipcv_add_test(hipcv_test_cvt_color tests/test_cvt_color.cpp)
     hipcv_add_test(hipcv_test_resize tests/test_resize.cpp)
     hipcv_add_test(hipcv_test_threshold tests/test_threshold.cpp)

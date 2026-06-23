@@ -121,11 +121,13 @@ Implemented or scaffolded:
 - Chained preprocessing pipeline example.
 - Basic preprocessing benchmark executable.
 - Supported operation matrix.
+- API design notes.
+- GPU `GpuMat` roundtrip, copy, and move-semantics tests.
 
 Next technical target:
 
 ```text
-GpuMat roundtrip/copy GPU tests + API design notes
+CI workflow for no-HIP build checks
 ```
 
 ## Quickstart
@@ -219,6 +221,7 @@ exit criteria.
 
 - [Roadmap](docs/roadmap.md)
 - [Supported operations](docs/supported-operations.md)
+- [API design notes](docs/api-design.md)
 - [Windows development notes](docs/windows-development.md)
 - [Market positioning](docs/market-positioning.md)
 - [Validation log](docs/validation-log.md)

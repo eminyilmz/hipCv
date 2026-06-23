@@ -223,7 +223,6 @@ tests/test_status.cpp
 tests/test_image_shape.cpp
 tests/test_gpu_mat_no_hip.cpp
 tests/test_gpu_mat_roundtrip.cpp
-tests/test_copy.cpp
 tests/test_cvt_color.cpp
 tests/test_resize.cpp
 tests/test_threshold.cpp

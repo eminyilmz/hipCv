@@ -477,3 +477,46 @@ The no-HIP preset was also validated after adding the invalid argument test:
 ```text
 100% tests passed, 0 tests failed out of 9
 ```
+
+## 2026-06-23: GpuMat GPU Roundtrip Tests And API Design Notes
+
+### Feature
+
+- Added `docs/api-design.md`.
+- Added `hipcv_test_gpu_mat_roundtrip`.
+- Covered HIP-backed `GpuMat::upload`, `GpuMat::download`, `GpuMat::copyTo`,
+  move construction, and move assignment.
+- Linked API design notes from the README.
+
+### Verification
+
+```powershell
+cmake --fresh --preset windows-vs2026
+cmake --build --preset windows-vs2026-release
+ctest --preset windows-vs2026-release --output-on-failure
+```
+
+Result:
+
+```text
+ 1/10 Test  #1: hipcv_windows_smoke ............... Passed
+ 2/10 Test  #2: hipcv_test_status ................. Passed
+ 3/10 Test  #3: hipcv_test_gpu_mat_no_hip ......... Passed
+ 4/10 Test  #4: hipcv_test_gpu_mat_roundtrip ...... Passed
+ 5/10 Test  #5: hipcv_test_cvt_color .............. Passed
+ 6/10 Test  #6: hipcv_test_resize ................. Passed
+ 7/10 Test  #7: hipcv_test_threshold .............. Passed
+ 8/10 Test  #8: hipcv_test_blur ................... Passed
+ 9/10 Test  #9: hipcv_test_gaussian_blur .......... Passed
+10/10 Test #10: hipcv_test_imgproc_invalid_args ... Passed
+100% tests passed, 0 tests failed out of 10
+```
+
+### No-HIP Check
+
+The no-HIP preset was also validated after adding the GPU roundtrip test. The
+roundtrip test skips GPU checks when HIP is disabled.
+
+```text
+100% tests passed, 0 tests failed out of 10
+```
